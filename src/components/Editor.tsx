@@ -196,8 +196,14 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
                     <div className="space-y-6 text-sm">
                         <section>
                             <h5 className="font-semibold text-text-muted mb-2">Slide Separation</h5>
-                            <code className="block bg-white/5 p-2 rounded-lg text-violet-300 font-mono border border-white/5">---</code>
-                            <p className="text-text-dim mt-2 leading-relaxed">Place three dashes on a new line to start a horizontal slide.</p>
+                            <div className="space-y-2">
+                                <code className="block bg-white/5 p-2 rounded-lg text-violet-300 font-mono border border-white/5">---</code>
+                                <p className="text-text-dim leading-relaxed">Place three dashes on a new line for explicit separation.</p>
+                                <div className="p-2 border border-violet-500/20 bg-violet-500/5 rounded-lg">
+                                    <p className="text-[10px] uppercase font-bold text-violet-400 mb-1">Implicit</p>
+                                    <p className="text-text-dim text-xs">Slides also split automatically at # and ## headers.</p>
+                                </div>
+                            </div>
                         </section>
 
                         <section>

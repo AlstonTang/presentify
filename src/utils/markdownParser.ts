@@ -1,29 +1,39 @@
 import type { SlideContent } from '../types';
 
 export function parseMarkdownToSlides(markdown: string): SlideContent[] {
-    // Simple delimiter-based splitting
-    // Use --- for horizontal slides
-    // Use -- for vertical slides (optional extension)
+    // 1. Split by explicit separator first
+    const explicitSections = markdown.split(/\n\s*---\s*\n/);
+    const allSlides: SlideContent[] = [];
 
-    const sections = markdown.split(/\n---\n/);
+    explicitSections.forEach(section => {
+        // 2. Within each section, split by H1 or H2 headers
+        // We use a positive lookahead (?=...) so the header stays with its content
+        // This handles cases where people want to start a new slide with just a header
+        const implicitSections = section.split(/\n(?=#{1,2}\s)/);
 
-    return sections.map(section => {
-        let content = section.trim();
-        let notes = '';
+        implicitSections.forEach(subSection => {
+            const trimmed = subSection.trim();
+            if (!trimmed) return;
 
-        // Extract speaker notes: text after "Note:" at the end of section
-        const noteMatch = content.match(/\nNote:([\s\S]*)$/i);
-        if (noteMatch) {
-            notes = noteMatch[1].trim();
-            content = content.replace(/\nNote:[\s\S]*$/i, '').trim();
-        }
+            let content = trimmed;
+            let notes = '';
 
-        return {
-            type: 'slide',
-            content,
-            notes
-        };
+            // Extract speaker notes: text after "Note:" at the end of section
+            const noteMatch = content.match(/\nNote:([\s\S]*)$/i);
+            if (noteMatch) {
+                notes = noteMatch[1].trim();
+                content = content.replace(/\nNote:[\s\S]*$/i, '').trim();
+            }
+
+            allSlides.push({
+                type: 'slide',
+                content,
+                notes
+            });
+        });
     });
+
+    return allSlides;
 }
 
 export function generateRevealHtml(slides: SlideContent[]): string {
