@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, Save, Sparkles, Wand2, Eye, Layout, Check } from 'lucide-react';
+import { ArrowLeft, Save, Sparkles, Wand2, Eye, Layout, Check, AlignLeft, AlignCenter } from 'lucide-react';
 import type { Presentation } from '../types';
 import { ThemeSelector } from './ThemeSelector';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -8,7 +8,7 @@ interface EditorProps {
     presentation: Presentation;
     onSave: (presentation: Presentation) => void;
     onBack: () => void;
-    onPreview: (markdown: string, theme: string, title: string) => void;
+    onPreview: (markdown: string, theme: string, title: string, globalAlignment: 'center' | 'left') => void;
     onAiEnhance: (markdown: string, onProgress?: (status: string) => void) => Promise<string>;
 }
 
@@ -16,13 +16,14 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
     const [markdown, setMarkdown] = React.useState(presentation.markdown);
     const [title, setTitle] = React.useState(presentation.title);
     const [theme, setTheme] = React.useState(presentation.theme || 'black');
+    const [globalAlignment, setGlobalAlignment] = React.useState<'center' | 'left'>(presentation.globalAlignment || 'center');
     const [isEnhancing, setIsEnhancing] = React.useState(false);
     const [isSaved, setIsSaved] = React.useState(false);
     const [aiStatus, setAiStatus] = React.useState('');
     const [aiError, setAiError] = React.useState<string | null>(null);
 
     const handleSave = () => {
-        onSave({ ...presentation, title, markdown, theme });
+        onSave({ ...presentation, title, markdown, theme, globalAlignment });
         setIsSaved(true);
         setTimeout(() => setIsSaved(false), 2000);
     };
@@ -69,6 +70,23 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
                         <ThemeSelector currentTheme={theme} onThemeChange={setTheme} />
                     </div>
 
+                    <div className="hidden lg:flex items-center gap-1 p-1 bg-white/5 rounded-xl border border-white/10">
+                        <button
+                            onClick={() => setGlobalAlignment('center')}
+                            className={`p-1.5 rounded-lg transition-all ${globalAlignment === 'center' ? 'bg-violet-500 text-white shadow-lg' : 'text-text-dim hover:text-white'}`}
+                            title="Center Align (Global)"
+                        >
+                            <AlignCenter size={16} />
+                        </button>
+                        <button
+                            onClick={() => setGlobalAlignment('left')}
+                            className={`p-1.5 rounded-lg transition-all ${globalAlignment === 'left' ? 'bg-violet-500 text-white shadow-lg' : 'text-text-dim hover:text-white'}`}
+                            title="Left Align (Global)"
+                        >
+                            <AlignLeft size={16} />
+                        </button>
+                    </div>
+
                     <div className="w-px h-6 bg-white/10 mx-2" />
 
                     <div className="flex gap-2">
@@ -103,7 +121,7 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
                         </button>
 
                         <button
-                            onClick={() => onPreview(markdown, theme, title)}
+                            onClick={() => onPreview(markdown, theme, title, globalAlignment)}
                             className="px-5 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl font-semibold flex items-center gap-2 transition-all"
                         >
                             <Eye size={18} />
@@ -197,32 +215,38 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
                         <section>
                             <h5 className="font-semibold text-text-muted mb-2">Slide Separation</h5>
                             <div className="space-y-2">
-                                <code className="block bg-white/5 p-2 rounded-lg text-violet-300 font-mono border border-white/5">---</code>
-                                <p className="text-text-dim leading-relaxed">Place three dashes on a new line for explicit separation.</p>
+                                <div className="p-2 bg-white/5 rounded-lg border border-white/5">
+                                    <code className="text-violet-300 font-mono">---</code>
+                                    <p className="text-text-dim text-xs mt-1">Horizontal slide (main flow)</p>
+                                </div>
+                                <div className="p-2 bg-white/5 rounded-lg border border-white/5">
+                                    <code className="text-violet-300 font-mono">--</code>
+                                    <p className="text-text-dim text-xs mt-1">Vertical sub-slide (down scroll)</p>
+                                </div>
                                 <div className="p-2 border border-violet-500/20 bg-violet-500/5 rounded-lg">
                                     <p className="text-[10px] uppercase font-bold text-violet-400 mb-1">Implicit</p>
-                                    <p className="text-text-dim text-xs">Slides also split automatically at # and ## headers.</p>
+                                    <p className="text-text-dim text-xs">Slides split at # and ## headers.</p>
                                 </div>
+                            </div>
+                        </section>
+
+                        <section>
+                            <h5 className="font-semibold text-text-muted mb-2">Alignment</h5>
+                            <div className="space-y-2">
+                                <code className="block bg-white/5 p-2 rounded-lg text-violet-300 font-mono border border-white/5">::left</code>
+                                <p className="text-text-dim text-xs leading-relaxed">Place at the very start of a slide for selective left-alignment.</p>
                             </div>
                         </section>
 
                         <section>
                             <h5 className="font-semibold text-text-muted mb-2">Speaker Notes</h5>
                             <code className="block bg-white/5 p-2 rounded-lg text-violet-300 font-mono border border-white/5">Note:</code>
-                            <p className="text-text-dim mt-2 leading-relaxed">Content after "Note:" will only be visible in speaker view.</p>
+                            <p className="text-text-dim mt-1 text-xs leading-relaxed">Visible in speaker view.</p>
                         </section>
 
                         <section>
-                            <h5 className="font-semibold text-text-muted mb-2">Fragments</h5>
-                            <p className="text-text-dim leading-relaxed">Add <span className="text-violet-300">.fragment</span> class to elements for step-by-step appearance.</p>
-                        </section>
-
-                        <section>
-                            <h5 className="font-semibold text-text-muted mb-2">Mathematics (KaTeX)</h5>
-                            <div className="space-y-2">
-                                <code className="block bg-white/5 p-2 rounded-lg text-violet-300 font-mono border border-white/5">$E = mc^2$</code>
-                                <p className="text-text-dim leading-relaxed">Use single $ for inline and double $$ for block math.</p>
-                            </div>
+                            <h5 className="font-semibold text-text-muted mb-2">Auto-Split</h5>
+                            <p className="text-text-dim text-xs leading-relaxed">Very long slides (&gt;20 lines) are automatically split into vertical sub-slides to prevent cutoff.</p>
                         </section>
                     </div>
 

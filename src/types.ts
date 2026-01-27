@@ -3,6 +3,7 @@ export interface Presentation {
     title: string;
     markdown: string;
     theme: string;
+    globalAlignment?: 'center' | 'left';
     createdAt: number;
     updatedAt: number;
 }
@@ -12,4 +13,6 @@ export interface SlideContent {
     content: string;
     notes?: string;
     background?: string;
+    subSlides?: SlideContent[];
+    alignment?: 'center' | 'left';
 }

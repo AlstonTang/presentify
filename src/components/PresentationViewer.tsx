@@ -13,10 +13,11 @@ import 'reveal.js/dist/reveal.css';
 interface PresentationViewerProps {
     markdown: string;
     theme: string;
+    globalAlignment?: 'center' | 'left';
     onClose: () => void;
 }
 
-export const PresentationViewer: React.FC<PresentationViewerProps> = ({ markdown, theme, onClose }) => {
+export const PresentationViewer: React.FC<PresentationViewerProps> = ({ markdown, theme, globalAlignment = 'center', onClose }) => {
     const deckRef = React.useRef<HTMLDivElement>(null);
     const slides = React.useMemo(() => parseMarkdownToSlides(markdown), [markdown]);
 
@@ -65,6 +66,11 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({ markdown
             }
             .reveal p, .reveal li { line-height: 1.6 !important; }
             .reveal-viewport { background: #000 !important; }
+
+            /* Alignment classes */
+            .reveal .align-left { text-align: left !important; }
+            .reveal .align-left > * { text-align: left !important; }
+            .reveal .align-left ul, .reveal .align-left ol { display: block; }
         `;
 
         if (theme === 'presentify-dark') {
@@ -156,6 +162,7 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({ markdown
                 markdown: {
                     notesSeparator: 'Note:'
                 },
+                center: globalAlignment === 'center',
                 katex: {
                     version: 'latest',
                     delimiters: [
@@ -180,7 +187,7 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({ markdown
             const styleToRemove = document.getElementById(customStyleId);
             if (styleToRemove) styleToRemove.remove();
         };
-    }, [theme]);
+    }, [theme, globalAlignment]);
 
     React.useEffect(() => {
         const handleEsc = (e: KeyboardEvent) => {
@@ -210,12 +217,36 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({ markdown
             <div className="reveal" ref={deckRef}>
                 <div className="slides">
                     {slides.map((slide, index) => (
-                        <section key={index} data-markdown="">
-                            <textarea
-                                data-template
-                                defaultValue={`${slide.content}${slide.notes ? `\n\nNote:\n${slide.notes}` : ''}`}
-                            />
-                        </section>
+                        slide.type === 'vertical' && slide.subSlides ? (
+                            <section key={index}>
+                                {slide.subSlides.map((sub, subIdx) => {
+                                    const isLeft = sub.alignment === 'left' || globalAlignment === 'left';
+                                    return (
+                                        <section
+                                            key={`${index}-${subIdx}`}
+                                            data-markdown=""
+                                            className={isLeft ? 'align-left' : ''}
+                                        >
+                                            <textarea
+                                                data-template
+                                                defaultValue={`${sub.content}${sub.notes ? `\n\nNote:\n${sub.notes}` : ''}`}
+                                            />
+                                        </section>
+                                    );
+                                })}
+                            </section>
+                        ) : (
+                            <section
+                                key={index}
+                                data-markdown=""
+                                className={(slide.alignment === 'left' || globalAlignment === 'left') ? 'align-left' : ''}
+                            >
+                                <textarea
+                                    data-template
+                                    defaultValue={`${slide.content}${slide.notes ? `\n\nNote:\n${slide.notes}` : ''}`}
+                                />
+                            </section>
+                        )
                     ))}
                 </div>
             </div>
