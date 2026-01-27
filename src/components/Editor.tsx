@@ -9,7 +9,7 @@ interface EditorProps {
     onSave: (presentation: Presentation) => void;
     onBack: () => void;
     onPreview: (markdown: string, theme: string, title: string) => void;
-    onAiEnhance: (markdown: string) => Promise<string>;
+    onAiEnhance: (markdown: string, onProgress?: (status: string) => void) => Promise<string>;
 }
 
 export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, onPreview, onAiEnhance }) => {
@@ -18,6 +18,8 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
     const [theme, setTheme] = React.useState(presentation.theme || 'black');
     const [isEnhancing, setIsEnhancing] = React.useState(false);
     const [isSaved, setIsSaved] = React.useState(false);
+    const [aiStatus, setAiStatus] = React.useState('');
+    const [aiError, setAiError] = React.useState<string | null>(null);
 
     const handleSave = () => {
         onSave({ ...presentation, title, markdown, theme });
@@ -27,14 +29,16 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
 
     const handleAiEnhance = async () => {
         setIsEnhancing(true);
+        setAiError(null);
         try {
-            const enhancedMarkdown = await onAiEnhance(markdown);
+            const enhancedMarkdown = await onAiEnhance(markdown, setAiStatus);
             setMarkdown(enhancedMarkdown);
-        } catch (error) {
+        } catch (error: any) {
             console.error('AI Enhancement failed:', error);
-            alert('AI Enhancement failed. Check the console for details.');
+            setAiError(error.message || 'AI Enhancement failed. Check connection or hardware support.');
         } finally {
             setIsEnhancing(false);
+            setAiStatus('');
         }
     };
 
@@ -142,11 +146,40 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 exit={{ opacity: 0 }}
-                                className="absolute inset-0 bg-violet-600/5 backdrop-blur-[2px] pointer-events-none flex items-center justify-center"
+                                className="absolute inset-0 bg-violet-600/5 backdrop-blur-[2px] pointer-events-none flex items-center justify-center p-8"
                             >
-                                <div className="flex flex-col items-center gap-4">
+                                <div className="flex flex-col items-center gap-4 text-center max-w-sm">
                                     <div className="w-16 h-16 border-4 border-violet-500/20 border-t-violet-500 rounded-full animate-spin" />
-                                    <p className="text-violet-400 font-bold tracking-widest uppercase text-xs animate-pulse">Synchronizing with Intelligence</p>
+                                    <p className="text-violet-400 font-bold tracking-widest uppercase text-xs animate-pulse">
+                                        Synchronizing with Intelligence
+                                    </p>
+                                    {aiStatus && (
+                                        <p className="text-text-dim text-xs mt-2">{aiStatus}</p>
+                                    )}
+                                </div>
+                            </motion.div>
+                        )}
+                        {aiError && (
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                className="absolute top-8 left-1/2 -translate-x-1/2 bg-red-950/80 border border-red-500/50 p-4 rounded-2xl shadow-2xl backdrop-blur-xl max-w-md z-[60]"
+                            >
+                                <div className="flex flex-col gap-3">
+                                    <div className="flex items-center gap-2 text-red-400 font-bold text-sm">
+                                        <ArrowLeft size={16} className="rotate-90" />
+                                        Hardware / Driver Issue Detected
+                                    </div>
+                                    <p className="text-white/80 text-xs leading-relaxed whitespace-pre-wrap">
+                                        {aiError}
+                                    </p>
+                                    <button
+                                        onClick={() => setAiError(null)}
+                                        className="text-[10px] uppercase tracking-wider font-bold text-white/40 hover:text-white/80 transition-colors"
+                                    >
+                                        Dismiss
+                                    </button>
                                 </div>
                             </motion.div>
                         )}
@@ -176,6 +209,14 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
                         <section>
                             <h5 className="font-semibold text-text-muted mb-2">Fragments</h5>
                             <p className="text-text-dim leading-relaxed">Add <span className="text-violet-300">.fragment</span> class to elements for step-by-step appearance.</p>
+                        </section>
+
+                        <section>
+                            <h5 className="font-semibold text-text-muted mb-2">Mathematics (KaTeX)</h5>
+                            <div className="space-y-2">
+                                <code className="block bg-white/5 p-2 rounded-lg text-violet-300 font-mono border border-white/5">$E = mc^2$</code>
+                                <p className="text-text-dim leading-relaxed">Use single $ for inline and double $$ for block math.</p>
+                            </div>
                         </section>
                     </div>
 

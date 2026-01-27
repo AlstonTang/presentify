@@ -11,9 +11,11 @@
   },
   "dependencies": {
     "@mlc-ai/web-llm": "^0.2.80",
+    "@types/katex": "^0.16.8",
     "@types/uuid": "^10.0.0",
     "clsx": "^2.1.1",
     "framer-motion": "^12.29.2",
+    "katex": "^0.16.28",
     "lucide-react": "^0.563.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

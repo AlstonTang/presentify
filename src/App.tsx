@@ -25,7 +25,7 @@ const App: React.FC = () => {
         const newPresentation: Presentation = {
             id: newId,
             title: 'Untitled Presentation',
-            markdown: '# Welcome to Presentify\n\nEdit this to start!\n\n---\n\n## Second Slide\n\n- Point 1\n- Point 2\n\nNote:\nThese are speaker notes.',
+            markdown: '# Welcome to Presentify\n\nEdit this to start!\n\n---\n\n## Second Slide\n\n- Point 1\n- Point 2\n\nMathematical Magic:\n$E = mc^2$\n\n$$\n\\int_{a}^{b} x^2 dx = \\frac{b^3 - a^3}{3}\n$$\n\nNote:\nThese are speaker notes.',
             theme: 'black',
             createdAt: Date.now(),
             updatedAt: Date.now()
@@ -51,8 +51,6 @@ const App: React.FC = () => {
 
     const handleSave = (p: Presentation) => {
         storage.savePresentation(p);
-        setView('dashboard');
-        setCurrentId(null);
     };
 
     const handleBack = () => {
@@ -70,10 +68,8 @@ const App: React.FC = () => {
         setView('player');
     };
 
-    const handleAiEnhance = async (markdown: string): Promise<string> => {
-        return await enhanceMarkdown(markdown, (status) => {
-            console.log('AI Status:', status);
-        });
+    const handleAiEnhance = async (markdown: string, onProgress?: (status: string) => void): Promise<string> => {
+        return await enhanceMarkdown(markdown, onProgress);
     };
 
     return (

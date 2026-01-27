@@ -2,6 +2,7 @@ import React from 'react';
 import Reveal from 'reveal.js';
 import Markdown from 'reveal.js/plugin/markdown/markdown.esm.js';
 import Notes from 'reveal.js/plugin/notes/notes.esm.js';
+import Math from 'reveal.js/plugin/math/math.esm.js';
 import { X } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -31,7 +32,7 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({ markdown
 
         if (deckRef.current) {
             const deck = new Reveal(deckRef.current, {
-                plugins: [Markdown, Notes],
+                plugins: [Markdown, Notes, Math.KaTeX],
                 embedded: false,
                 hash: true,
                 mouseWheel: true,
@@ -40,6 +41,16 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({ markdown
                 markdown: {
                     separator: '^\n---\n',
                     notesSeparator: 'Note:'
+                },
+                katex: {
+                    version: 'latest',
+                    delimiters: [
+                        { left: '$$', right: '$$', display: true },
+                        { left: '$', right: '$', display: false },
+                        { left: '\\(', right: '\\)', display: false },
+                        { left: '\\[', right: '\\]', display: true }
+                    ],
+                    ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
                 }
             });
 

@@ -15,11 +15,28 @@ Rules:
 
 export async function enhanceMarkdown(markdown: string, onProgress?: (status: string) => void): Promise<string> {
     if (!engine) {
-        onProgress?.("Loading Local AI Model...");
-        engine = await webllm.CreateMLCEngine(
-            "Phi-3-mini-4k-instruct-q4f16_1-MLC", // Using a stable small model
-            { initProgressCallback: (report) => onProgress?.(report.text) }
-        );
+        try {
+            onProgress?.("Loading Local AI Model...");
+
+            // Check for WebGPU support
+            if (!(navigator as any).gpu) {
+                throw new Error("WebGPU not detected. For Intel Arc on Linux, please enable 'Enable unsafe WebGPU' and 'Vulkan' in chrome://flags.");
+            }
+
+            engine = await webllm.CreateMLCEngine(
+                "Phi-3-mini-4k-instruct-q4f16_1-MLC",
+                {
+                    initProgressCallback: (report) => onProgress?.(report.text),
+                    // We could potentially try fallback device here if needed
+                }
+            );
+        } catch (error: any) {
+            console.error('WebLLM Init Error:', error);
+            if (error.message?.includes("WebGPU")) {
+                throw new Error("Local AI requires WebGPU. On Linux (Intel Arc), go to chrome://flags and enable:\n1. Experimental WebGPU\n2. Vulkan\n3. Unsafe WebGPU");
+            }
+            throw error;
+        }
     }
 
     onProgress?.("Analysing and Enhancing...");
