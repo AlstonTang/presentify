@@ -9,7 +9,7 @@ export function parseMarkdownToSlides(markdown: string): SlideContent[] {
         // 2. Within each section, split by H1 or H2 headers
         // We use a positive lookahead (?=...) so the header stays with its content
         // This handles cases where people want to start a new slide with just a header
-        const implicitSections = section.split(/\n(?=#{1,2}\s)/);
+        const implicitSections = section.split(/\n(?=#+\s)/);
 
         implicitSections.forEach(subSection => {
             const trimmed = subSection.trim();

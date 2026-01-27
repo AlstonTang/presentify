@@ -31,8 +31,9 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({ markdown
 
         // 1. Determine base Reveal theme
         let baseTheme = theme;
-        if (theme === 'presentify-dark' || theme === 'neon-nebula' || theme === 'cyber-midnight') baseTheme = 'black';
-        if (theme === 'minimal-glass') baseTheme = 'white';
+        if (['presentify-dark', 'neon-nebula', 'cyber-midnight', 'minimal-glass'].includes(theme)) {
+            baseTheme = theme === 'minimal-glass' ? 'white' : 'black';
+        }
 
         const link = document.createElement('link');
         link.rel = 'stylesheet';
@@ -40,54 +41,113 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({ markdown
         link.id = linkId;
         document.head.appendChild(link);
 
-        // 2. Apply Custom Overrides for Pro Themes
-        if (['presentify-dark', 'neon-nebula', 'cyber-midnight', 'minimal-glass'].includes(theme)) {
-            const style = document.createElement('style');
-            style.id = customStyleId;
+        // 2. Apply Immersive Custom Overrides for ALL Themes
+        const style = document.createElement('style');
+        style.id = customStyleId;
 
-            let customCss = `
-                .reveal { font-family: 'Outfit', sans-serif !important; }
-                .reveal h1, .reveal h2, .reveal h3 { font-family: 'Outfit', sans-serif !important; font-weight: 800 !important; text-transform: none !important; }
-            `;
-
-            if (theme === 'presentify-dark') {
-                customCss += `
-                    .reveal-viewport { background: #050811 !important; }
-                    .reveal-viewport::before { content: ''; position: fixed; inset: 0; background: radial-gradient(circle at 0% 0%, hsla(250, 84%, 15%, 0.4) 0%, transparent 50%), radial-gradient(circle at 100% 100%, hsla(280, 84%, 15%, 0.4) 0%, transparent 50%); pointer-events: none; }
-                    .reveal h1, .reveal h2 { background: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 30px rgba(139, 92, 246, 0.3)); }
-                    .reveal section { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 2rem; padding: 2rem !important; }
-                    .reveal p, .reveal li { color: #94a3b8 !important; }
-                `;
-            } else if (theme === 'neon-nebula') {
-                customCss += `
-                    .reveal-viewport { background: #0a0118 !important; }
-                    .reveal h1, .reveal h2 { color: #fff !important; text-shadow: 0 0 10px #f0f, 0 0 20px #f0f, 0 0 40px #f0f !important; }
-                    .reveal section { background: rgba(255, 0, 255, 0.02); border: 1px solid rgba(255, 0, 255, 0.1); border-radius: 2rem; box-shadow: 0 0 50px rgba(255, 0, 255, 0.05); }
-                    .reveal p, .reveal li { color: #e0aaff !important; }
-                `;
-            } else if (theme === 'cyber-midnight') {
-                customCss += `
-                    .reveal-viewport { background: #020617 !important; }
-                    .reveal h1, .reveal h2 { color: #10b981 !important; text-shadow: 0 0 15px rgba(16, 185, 129, 0.5) !important; font-family: 'JetBrains Mono', monospace !important; }
-                    .reveal section { border-left: 4px solid #10b981; background: rgba(16, 185, 129, 0.05); padding-left: 3rem !important; }
-                    .reveal p, .reveal li { color: #64748b !important; font-family: 'JetBrains Mono', monospace !important; }
-                `;
-            } else if (theme === 'minimal-glass') {
-                customCss += `
-                    .reveal-viewport { background: #f8fafc !important; }
-                    .reveal h1, .reveal h2 { color: #0f172a !important; }
-                    .reveal section { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(20px); border: 1px solid rgba(0, 0, 0, 0.05); border-radius: 1.5rem; box-shadow: 0 20px 50px rgba(0,0,0,0.05); }
-                    .reveal p, .reveal li { color: #475569 !important; }
-                `;
+        let customCss = `
+            @keyframes orbit {
+                0% { transform: translate(-10%, -10%) rotate(0deg); }
+                50% { transform: translate(10%, 10%) rotate(180deg); }
+                100% { transform: translate(-10%, -10%) rotate(360deg); }
             }
+            @keyframes pulse-ring {
+                0% { transform: scale(0.8); opacity: 0.1; }
+                50% { transform: scale(1.3); opacity: 0.2; }
+                100% { transform: scale(0.8); opacity: 0.1; }
+            }
+            .reveal { font-family: 'Outfit', sans-serif !important; }
+            .reveal h1, .reveal h2, .reveal h3 { 
+                font-family: 'Outfit', sans-serif !important; 
+                font-weight: 800 !important; 
+                text-transform: none !important; 
+                margin-bottom: 0.5em !important;
+            }
+            .reveal p, .reveal li { line-height: 1.6 !important; }
+            .reveal-viewport { background: #000 !important; }
+        `;
 
-            style.appendChild(document.createTextNode(customCss));
-            document.head.appendChild(style);
+        if (theme === 'presentify-dark') {
+            customCss += `
+                .reveal-viewport { background: #010208 !important; }
+                .reveal-viewport::before {
+                    content: ''; position: fixed; inset: -100%;
+                    background: radial-gradient(circle at 20% 30%, #4338ca 0%, transparent 40%),
+                                radial-gradient(circle at 80% 70%, #7e22ce 0%, transparent 40%),
+                                radial-gradient(circle at 50% 50%, #db2777 0%, transparent 40%);
+                    filter: blur(150px); animation: orbit 40s linear infinite; z-index: -1; opacity: 0.4;
+                }
+                .reveal h1, .reveal h2 { 
+                    background: linear-gradient(to right, #a5b4fc, #d8b4fe, #fb7185);
+                    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+                    font-size: 3.5em !important; filter: drop-shadow(0 0 30px rgba(139, 92, 246, 0.4));
+                }
+                .reveal section { background: rgba(255,255,255,0.02); backdrop-filter: blur(50px); border: 1px solid rgba(255,255,255,0.08); border-radius: 4rem; padding: 80px !important; box-shadow: 0 50px 100px -20px rgba(0,0,0,0.8); }
+            `;
+        } else if (theme === 'neon-nebula') {
+            customCss += `
+                .reveal-viewport { background: #050112 !important; }
+                .reveal-viewport::before { content: ''; position: fixed; inset: 0; background: radial-gradient(circle at 50% 50%, #2e1065 0%, #050112 100%); z-index: -1; }
+                .reveal-viewport::after { content: ''; position: fixed; width: 100vmax; height: 100vmax; top: 50%; left: 50%; transform: translate(-50%, -50%); background: radial-gradient(circle, #db2777 0%, transparent 70%); filter: blur(180px); animation: pulse-ring 20s ease-in-out infinite; opacity: 0.2; z-index: -1; }
+                .reveal h1 { color: #fff !important; text-shadow: 0 0 20px #db2777, 0 0 50px #db2777, 0 0 100px #7e22ce !important; font-size: 4.5em !important; }
+                .reveal section { background: transparent !important; }
+            `;
+        } else if (theme === 'cyber-midnight') {
+            customCss += `
+                .reveal-viewport { background: #010409 !important; }
+                .reveal-viewport::before { content: ''; position: fixed; inset: 0; background-image: linear-gradient(rgba(16, 185, 129, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(16, 185, 129, 0.05) 1px, transparent 1px); background-size: 80px 80px; z-index: -1; }
+                .reveal h1 { color: #10b981 !important; font-family: 'JetBrains Mono', monospace !important; text-shadow: 0 0 20px rgba(16, 185, 129, 0.4) !important; font-size: 4em !important; border-left: 12px solid #10b981; padding-left: 30px !important; text-align: left !important; }
+                .reveal section { border: 1px solid rgba(16, 185, 129, 0.2); background: rgba(1, 4, 9, 0.85); border-radius: 0.25rem; padding: 60px !important; }
+            `;
+        } else if (theme === 'blood') {
+            customCss += `
+                .reveal-viewport { background: #080000 !important; }
+                .reveal-viewport::before {
+                    content: ''; position: fixed; inset: -50%;
+                    background: radial-gradient(circle at 50% 50%, #450a0a 0%, transparent 60%);
+                    filter: blur(100px); animation: pulse-ring 10s ease-in-out infinite; z-index: -1;
+                }
+                .reveal h1, .reveal h2 { color: #f87171 !important; text-shadow: 0 0 30px rgba(220, 38, 38, 0.5) !important; font-size: 4em !important; }
+                .reveal section { background: rgba(0,0,0,0.4); backdrop-filter: blur(20px); border: 1px solid rgba(220, 38, 38, 0.2); border-radius: 2rem; padding: 60px !important; }
+            `;
+        } else if (theme === 'night') {
+            customCss += `
+                .reveal-viewport { background: #020617 !important; }
+                .reveal-viewport::before {
+                    content: ''; position: fixed; inset: -100%;
+                    background: radial-gradient(circle at 10% 10%, #1e3a8a 0%, transparent 40%), radial-gradient(circle at 90% 90%, #172554 0%, transparent 40%);
+                    filter: blur(120px); animation: orbit 60s linear infinite; z-index: -1;
+                }
+                .reveal h1 { color: #f8fafc !important; text-shadow: 0 10px 30px rgba(0,0,0,0.5) !important; filter: drop-shadow(0 0 20px rgba(56, 189, 248, 0.2)); }
+            `;
+        } else if (theme === 'moon') {
+            customCss += `
+                .reveal-viewport { background: #0f172a !important; }
+                .reveal-viewport::before {
+                    content: ''; position: fixed; inset: 0; background: radial-gradient(circle at 50% 50%, #334155 0%, #0f172a 100%); z-index: -1;
+                }
+                .reveal section { background: rgba(255,255,255,0.03); backdrop-filter: blur(30px); border: 1px solid rgba(255,255,255,0.1); border-radius: 3rem; }
+            `;
+        } else if (theme === 'minimal-glass' || theme === 'white') {
+            customCss += `
+                .reveal-viewport { background: #fdfdfd !important; }
+                .reveal-viewport::before { content: ''; position: fixed; inset: 0; background: radial-gradient(at 0% 0%, #f1f5f9 0, transparent 50%), radial-gradient(at 100% 100%, #e2e8f0 0, transparent 50%); z-index: -1; }
+                .reveal section { background: rgba(255,255,255,0.6); backdrop-filter: blur(30px); border: 1px solid rgba(255,255,255,0.9); box-shadow: 0 60px 120px -30px rgba(0,0,0,0.08); border-radius: 5rem; padding: 100px !important; }
+                .reveal h1 { color: #0f172a !important; font-size: 4.5em !important; letter-spacing: -3px; }
+            `;
         }
+
+        style.appendChild(document.createTextNode(customCss));
+        document.head.appendChild(style);
 
         if (deckRef.current) {
             const deck = new Reveal(deckRef.current, {
                 plugins: [Markdown, Notes, Math.KaTeX],
+                width: 1920,
+                height: 1080,
+                margin: 0.1,
+                minScale: 0.1,
+                maxScale: 2.0,
                 embedded: false,
                 hash: true,
                 mouseWheel: true,
@@ -109,7 +169,6 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({ markdown
             });
 
             deck.initialize().then(() => {
-                // Force layout recalculation
                 setTimeout(() => { deck.layout(); }, 100);
                 setTimeout(() => { deck.layout(); }, 500);
             });
@@ -123,7 +182,6 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({ markdown
         };
     }, [theme]);
 
-    // Close with Escape key
     React.useEffect(() => {
         const handleEsc = (e: KeyboardEvent) => {
             if (e.key === 'Escape') onClose();
@@ -139,13 +197,13 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({ markdown
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[100] bg-black flex flex-col"
         >
-            <div className="absolute top-6 right-6 z-[110] flex gap-3">
+            <div className="absolute top-8 right-8 z-[110] flex gap-3">
                 <button
                     onClick={onClose}
-                    className="w-12 h-12 flex items-center justify-center bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/20 rounded-2xl text-white transition-all hover:scale-110 active:scale-90 shadow-2xl"
+                    className="w-14 h-14 flex items-center justify-center bg-white/10 hover:bg-white/20 backdrop-blur-3xl border border-white/20 rounded-2xl text-white transition-all hover:scale-110 active:scale-90 shadow-2xl"
                     title="Exit Presentation"
                 >
-                    <X size={24} />
+                    <X size={28} />
                 </button>
             </div>
 
