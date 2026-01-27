@@ -4,6 +4,7 @@ export interface Presentation {
     markdown: string;
     theme: string;
     globalAlignment?: 'center' | 'left';
+    fontFamily?: string;
     createdAt: number;
     updatedAt: number;
 }

@@ -14,10 +14,11 @@ interface PresentationViewerProps {
     markdown: string;
     theme: string;
     globalAlignment?: 'center' | 'left';
+    fontFamily?: string;
     onClose: () => void;
 }
 
-export const PresentationViewer: React.FC<PresentationViewerProps> = ({ markdown, theme, globalAlignment = 'center', onClose }) => {
+export const PresentationViewer: React.FC<PresentationViewerProps> = ({ markdown, theme, globalAlignment = 'center', fontFamily = 'Outfit', onClose }) => {
     const deckRef = React.useRef<HTMLDivElement>(null);
     const slides = React.useMemo(() => parseMarkdownToSlides(markdown), [markdown]);
 
@@ -57,14 +58,17 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({ markdown
                 50% { transform: scale(1.3); opacity: 0.2; }
                 100% { transform: scale(0.8); opacity: 0.1; }
             }
-            .reveal { font-family: 'Outfit', sans-serif !important; }
+            .reveal { font-family: '${fontFamily}', sans-serif !important; }
             .reveal h1, .reveal h2, .reveal h3 { 
-                font-family: 'Outfit', sans-serif !important; 
+                font-family: '${fontFamily}', sans-serif !important; 
                 font-weight: 800 !important; 
                 text-transform: none !important; 
                 margin-bottom: 0.5em !important;
             }
-            .reveal p, .reveal li { line-height: 1.6 !important; }
+            .reveal p, .reveal li { 
+                font-family: '${fontFamily}', sans-serif !important; 
+                line-height: 1.6 !important; 
+            }
             .reveal-viewport { background: #000 !important; }
 
             /* Alignment classes */
@@ -187,7 +191,7 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({ markdown
             const styleToRemove = document.getElementById(customStyleId);
             if (styleToRemove) styleToRemove.remove();
         };
-    }, [theme, globalAlignment]);
+    }, [theme, globalAlignment, fontFamily]);
 
     React.useEffect(() => {
         const handleEsc = (e: KeyboardEvent) => {

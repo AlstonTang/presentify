@@ -7,91 +7,64 @@ const AUTO_SPLIT_CHAR_LIMIT = 1500;
 const AUTO_SPLIT_LINE_LIMIT = 20;
 
 export function parseMarkdownToSlides(markdown: string): SlideContent[] {
-    // 1. Split by explicit horizontal separator first
-    const horizontalSections = markdown.split(/\n\s*---\s*\n/);
+    // 1. Initial split by Horizontal separators (---, H1, H2)
+    // These levels always represent a "Main Slide" transition.
+    const horizontalSects = markdown.split(/\n\s*---\s*\n|\n(?=#{1,2}\s)/g);
     const result: SlideContent[] = [];
-
-    // Track the current secondary title (H2) for H3+ inheritance
     let currentSecondaryTitle = '';
 
-    horizontalSections.forEach(hSection => {
-        // 2. Check for explicit vertical split within horizontal section
-        const vSections = hSection.split(/\n\s*--\s*\n/);
+    horizontalSects.forEach(hSect => {
+        const trimmedHSect = hSect.trim();
+        if (!trimmedHSect) return;
 
-        if (vSections.length > 1) {
+        // 2. Inside each horizontal section, check for Vertical separators (-- or H3+)
+        // These represent sub-slides under the current main slide.
+        const verticalSects = trimmedHSect.split(/\n\s*--\s*\n|\n(?=###+\s)/g);
+
+        if (verticalSects.length > 1) {
             const subSlides: SlideContent[] = [];
-            vSections.forEach(vSect => {
-                const parsed = parseSlide(vSect, currentSecondaryTitle);
-                // Update tracker if we found a new H2
-                const h2Match = parsed.content.match(/^##\s+(.+)$/m);
+            verticalSects.forEach(vSect => {
+                const chunkSlides = parseAndProcess(vSect, currentSecondaryTitle);
+                if (chunkSlides.length === 0) return;
+
+                // Update H2 tracker from the first slide in this vertical chunk if it contains an H2
+                const h2Match = chunkSlides[0].content.match(/^##\s+(.+)$/m);
                 if (h2Match) currentSecondaryTitle = h2Match[1].trim();
-                subSlides.push(...autoSplitIfLong(parsed));
+
+                subSlides.push(...chunkSlides);
             });
 
-            result.push({
-                type: 'vertical',
-                content: '',
-                subSlides
-            });
+            if (subSlides.length > 0) {
+                result.push({ type: 'vertical', content: '', subSlides });
+            }
         } else {
-            // 3. Detect implicit hierarchy based on header levels
-            // We split by any header level (#, ##, ###, etc.)
-            const implicitSections = hSection.split(/\n(?=#+\s)/);
+            // Single vertical slide (may be auto-split later)
+            const chunkSlides = parseAndProcess(trimmedHSect, currentSecondaryTitle);
+            if (chunkSlides.length === 0) return;
 
-            if (implicitSections.length > 1) {
-                const subSlides: SlideContent[] = [];
-                let hasDeepHeaders = false;
+            const h2Match = chunkSlides[0].content.match(/^##\s+(.+)$/m);
+            if (h2Match) currentSecondaryTitle = h2Match[1].trim();
 
-                implicitSections.forEach(sub => {
-                    const parsed = parseSlide(sub, currentSecondaryTitle);
-
-                    // Detect if this is a deep header (H3+)
-                    if (parsed.content.match(/^###+\s+/)) {
-                        hasDeepHeaders = true;
-                    }
-
-                    // Update tracker if we found a new H2
-                    const h2Match = parsed.content.match(/^##\s+(.+)$/m);
-                    if (h2Match) currentSecondaryTitle = h2Match[1].trim();
-
-                    subSlides.push(...autoSplitIfLong(parsed));
-                });
-
-                // If any implicit sections were H3+, we treat the whole H-section as a vertical stack
-                // to maintain hierarchy and prevent "horizontal clutter"
-                if (hasDeepHeaders) {
-                    result.push({
-                        type: 'vertical',
-                        content: '',
-                        subSlides
-                    });
-                } else {
-                    // Otherwise, just keep them as separate horizontal slides
-                    result.push(...subSlides);
-                }
+            if (chunkSlides.length > 1) {
+                result.push({ type: 'vertical', content: '', subSlides: chunkSlides });
             } else {
-                // Single section, check for auto-split
-                const parsed = parseSlide(hSection, currentSecondaryTitle);
-
-                // Update tracker if we found a new H2
-                const h2Match = parsed.content.match(/^##\s+(.+)$/m);
-                if (h2Match) currentSecondaryTitle = h2Match[1].trim();
-
-                const splits = autoSplitIfLong(parsed);
-                if (splits.length > 1) {
-                    result.push({
-                        type: 'vertical',
-                        content: '',
-                        subSlides: splits
-                    });
-                } else {
-                    result.push(splits[0]);
-                }
+                result.push(chunkSlides[0]);
             }
         }
     });
 
     return result.filter(s => s.content || (s.subSlides && s.subSlides.length > 0));
+}
+
+/**
+ * Internal helper to parse a block of text into SlideContent and handle auto-splitting
+ */
+function parseAndProcess(text: string, parentTitle: string): SlideContent[] {
+    const trimmed = text.trim();
+    if (!trimmed) return [];
+
+    const slide = parseSlide(trimmed, parentTitle);
+    return autoSplitIfLong(slide);
 }
 
 function parseSlide(text: string, parentTitle: string = ''): SlideContent {
@@ -112,10 +85,9 @@ function parseSlide(text: string, parentTitle: string = ''): SlideContent {
         content = content.replace(/\nNote:[\s\S]*$/i, '').trim();
     }
 
-    // 3. Handle Tertiary Heading (H3) Inheritance
-    // If the slide starts with ### (or more), and we have a parent H2 title,
-    // modify the title to "{parentTitle} - {currentTitle}"
-    if (parentTitle && content.match(/^###+\s+/)) {
+    // 3. Handle Tertiary Heading (H3+) Inheritance
+    // Prepend the secondary title (H2) for context
+    if (parentTitle && content.startsWith('###')) {
         content = content.replace(/^(###+)\s+(.+)$/m, (match, prefix, title) => {
             if (!title.startsWith(parentTitle)) {
                 return `${prefix} ${parentTitle} - ${title}`;
@@ -132,6 +104,10 @@ function parseSlide(text: string, parentTitle: string = ''): SlideContent {
     };
 }
 
+/**
+ * Automatically splits extremely long slides into multiple slides (subslides)
+ * if they exceed character or line limits.
+ */
 function autoSplitIfLong(slide: SlideContent): SlideContent[] {
     const lines = slide.content.split('\n');
 
