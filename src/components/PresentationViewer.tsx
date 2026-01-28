@@ -153,8 +153,8 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({ markdown
         if (deckRef.current) {
             const deck = new Reveal(deckRef.current, {
                 plugins: [Markdown, Notes, Math.KaTeX],
-                width: 1920,
-                height: 1080,
+                width: window.screen.width,
+                height: window.screen.height,
                 margin: 0.1,
                 minScale: 0.1,
                 maxScale: 2.0,

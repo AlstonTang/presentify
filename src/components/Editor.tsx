@@ -182,13 +182,14 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
                 {/* Sidebar Gutter / Line Numbers */}
                 <div
                     ref={gutterRef}
-                    className="w-12 bg-slate-950/20 border-r border-white/5 flex-none pt-[48px] pb-12 overflow-hidden select-none"
+                    className="w-14 bg-slate-950/20 border-r border-white/5 flex-none pt-12 pb-12 overflow-hidden select-none"
                     style={{ fontFamily: 'JetBrains Mono, monospace' }}
                 >
                     {Array.from({ length: lineCount }).map((_, i) => (
                         <div
                             key={i}
-                            className="h-[27px] leading-[27px] text-[14px] text-text-dim/30 text-right pr-3"
+                            className="text-[18px] text-text-dim/30 text-right pr-4"
+                            style={{ height: '27px', lineHeight: '27px' }}
                         >
                             {i + 1}
                         </div>
@@ -201,8 +202,8 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
                         value={markdown}
                         onScroll={handleScroll}
                         onChange={(e) => setMarkdown(e.target.value)}
-                        className="w-full h-full bg-transparent pt-[48px] pb-12 px-8 md:px-12 text-[18px] font-mono resize-none focus:outline-none placeholder:text-text-dim/20 leading-[27px] selection:bg-violet-500/30 overflow-y-auto whitespace-pre overflow-x-auto"
-                        style={{ fontFamily: 'JetBrains Mono, monospace' }}
+                        className="w-full h-full bg-transparent pt-12 pb-12 px-6 text-[18px] resize-none focus:outline-none placeholder:text-text-dim/20 selection:bg-violet-500/30 overflow-y-auto whitespace-pre overflow-x-auto"
+                        style={{ fontFamily: 'JetBrains Mono, monospace', lineHeight: '27px' }}
                         placeholder="Write your content here!"
                     />
 

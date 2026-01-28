@@ -4,7 +4,7 @@ import type { SlideContent } from '../types';
  * Thresholds for auto-splitting long content
  */
 const AUTO_SPLIT_CHAR_LIMIT = 1500;
-const AUTO_SPLIT_LINE_LIMIT = 20;
+const AUTO_SPLIT_LINE_LIMIT = 24;
 
 export function parseMarkdownToSlides(markdown: string): SlideContent[] {
     // 1. Initial split by Horizontal separators (---, H1, H2)
@@ -144,7 +144,7 @@ function autoSplitIfLong(slide: SlideContent): SlideContent[] {
 
     return sections.map((sect, idx) => ({
         ...slide,
-        content: idx > 0 ? `${headerLevel} ${baseTitle} (Part ${idx + 1})\n\n${sect}` : sect,
+        content: idx > 0 ? `${headerLevel} ${baseTitle} (Part ${idx + 1} from above)\n\n${sect}` : sect,
         notes: idx === 0 ? slide.notes : ''
     }));
 }

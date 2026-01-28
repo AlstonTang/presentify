@@ -24,7 +24,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelect, onCreate, onPlay
 
     const filteredPresentations = presentations.filter(p =>
         p.title.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    ).sort((p, q) =>
+		q.updatedAt - p.updatedAt
+	);
 
     const handleDeleteClick = (e: React.MouseEvent, id: string) => {
         e.stopPropagation();
