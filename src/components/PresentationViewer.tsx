@@ -147,23 +147,22 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({ markdown
             customCss += `
                 .reveal-viewport { 
                     background: linear-gradient(135deg, #0c0015 0%, #1a0a2e 50%, #0f051d 100%) !important;
+                    overflow: visible !important;
                 }
-                .reveal-viewport::before {
-                    content: '';
+                .theme-bg-effect {
                     position: fixed;
                     inset: 0;
                     width: 100vw;
                     height: 100vh;
-                    background: radial-gradient(circle at 50% 50%, rgba(219, 39, 119, 0.15) 0%, transparent 60%);
+                    background: radial-gradient(circle at 50% 50%, rgba(219, 39, 119, 0.25) 0%, transparent 60%);
                     animation: pulse-ring 8s ease-in-out infinite;
                     z-index: 0;
                     pointer-events: none;
                 }
-                .reveal-viewport::after {
-                    content: '';
+                .theme-bg-effect-2 {
                     position: fixed;
                     inset: 0;
-                    background: radial-gradient(circle at 30% 70%, rgba(124, 58, 237, 0.2) 0%, transparent 50%);
+                    background: radial-gradient(circle at 30% 70%, rgba(124, 58, 237, 0.3) 0%, transparent 50%);
                     z-index: 0;
                     pointer-events: none;
                 }
@@ -180,26 +179,25 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({ markdown
             customCss += `
                 .reveal-viewport { 
                     background: #030712 !important;
+                    overflow: visible !important;
                 }
-                .reveal-viewport::before {
-                    content: '';
+                .theme-bg-effect {
                     position: fixed;
                     inset: 0;
                     background-image: 
-                        linear-gradient(rgba(16, 185, 129, 0.03) 1px, transparent 1px),
-                        linear-gradient(90deg, rgba(16, 185, 129, 0.03) 1px, transparent 1px);
+                        linear-gradient(rgba(16, 185, 129, 0.05) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(16, 185, 129, 0.05) 1px, transparent 1px);
                     background-size: 60px 60px;
                     z-index: 0;
                     pointer-events: none;
                 }
-                .reveal-viewport::after {
-                    content: '';
+                .theme-bg-effect-2 {
                     position: fixed;
                     bottom: 0;
                     left: 0;
                     right: 0;
-                    height: 40%;
-                    background: linear-gradient(to top, rgba(16, 185, 129, 0.05) 0%, transparent 100%);
+                    height: 50%;
+                    background: linear-gradient(to top, rgba(16, 185, 129, 0.1) 0%, transparent 100%);
                     z-index: 0;
                     pointer-events: none;
                 }
@@ -218,16 +216,17 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({ markdown
         } else if (theme === 'blood') {
             customCss += `
                 .reveal-viewport { 
-                    background: radial-gradient(ellipse at center, #1a0000 0%, #000 100%) !important;
+                    background: radial-gradient(ellipse at center, #1a0000 0%, #050000 100%) !important;
+                    overflow: visible !important;
                 }
-                .reveal-viewport::before {
-                    content: '';
+                .theme-bg-effect {
                     position: fixed;
-                    inset: -20%;
-                    width: 140%;
-                    height: 140%;
-                    background: radial-gradient(circle at 50% 30%, rgba(127, 29, 29, 0.4) 0%, transparent 60%);
-                    animation: pulse-ring 12s ease-in-out infinite;
+                    inset: -50px;
+                    width: calc(100% + 100px);
+                    height: calc(100% + 100px);
+                    background: radial-gradient(ellipse 80% 60% at 50% 30%, rgba(185, 28, 28, 0.5) 0%, transparent 60%);
+                    filter: blur(40px);
+                    animation: pulse-ring 10s ease-in-out infinite;
                     z-index: 0;
                     pointer-events: none;
                 }
@@ -244,16 +243,17 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({ markdown
             customCss += `
                 .reveal-viewport { 
                     background: linear-gradient(180deg, #020617 0%, #0f172a 100%) !important;
+                    overflow: visible !important;
                 }
-                .reveal-viewport::before {
-                    content: '';
+                .theme-bg-effect {
                     position: fixed;
-                    inset: -50%;
-                    width: 200%;
-                    height: 200%;
+                    inset: -100px;
+                    width: calc(100% + 200px);
+                    height: calc(100% + 200px);
                     background: 
-                        radial-gradient(circle at 15% 20%, rgba(30, 58, 138, 0.4) 0%, transparent 40%),
-                        radial-gradient(circle at 85% 80%, rgba(23, 37, 84, 0.5) 0%, transparent 50%);
+                        radial-gradient(ellipse 70% 50% at 15% 20%, rgba(30, 58, 138, 0.5) 0%, transparent 50%),
+                        radial-gradient(ellipse 60% 60% at 85% 80%, rgba(23, 37, 84, 0.6) 0%, transparent 50%);
+                    filter: blur(50px);
                     animation: orbit 80s linear infinite;
                     z-index: 0;
                     pointer-events: none;
@@ -271,12 +271,12 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({ markdown
             customCss += `
                 .reveal-viewport { 
                     background: radial-gradient(ellipse at 30% 20%, #1e293b 0%, #0f172a 100%) !important;
+                    overflow: visible !important;
                 }
-                .reveal-viewport::before {
-                    content: '';
+                .theme-bg-effect {
                     position: fixed;
                     inset: 0;
-                    background: radial-gradient(circle at 70% 30%, rgba(100, 116, 139, 0.15) 0%, transparent 50%);
+                    background: radial-gradient(circle at 70% 30%, rgba(148, 163, 184, 0.2) 0%, transparent 50%);
                     z-index: 0;
                     pointer-events: none;
                 }
@@ -289,14 +289,14 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({ markdown
             customCss += `
                 .reveal-viewport { 
                     background: linear-gradient(135deg, #fafafa 0%, #f1f5f9 50%, #e2e8f0 100%) !important;
+                    overflow: visible !important;
                 }
-                .reveal-viewport::before {
-                    content: '';
+                .theme-bg-effect {
                     position: fixed;
                     inset: 0;
                     background: 
-                        radial-gradient(circle at 10% 10%, rgba(99, 102, 241, 0.05) 0%, transparent 40%),
-                        radial-gradient(circle at 90% 90%, rgba(168, 85, 247, 0.05) 0%, transparent 40%);
+                        radial-gradient(circle at 10% 10%, rgba(99, 102, 241, 0.08) 0%, transparent 40%),
+                        radial-gradient(circle at 90% 90%, rgba(168, 85, 247, 0.08) 0%, transparent 40%);
                     z-index: 0;
                     pointer-events: none;
                 }
@@ -381,10 +381,19 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({ markdown
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[100] bg-black"
         >
-            {/* Aurora background for presentify-dark theme */}
+            {/* Theme background effects - rendered as real DOM elements */}
             {theme === 'presentify-dark' && (
                 <div className="presentify-aurora" />
             )}
+            {(theme === 'neon-nebula' || theme === 'cyber-midnight' || theme === 'blood' ||
+                theme === 'night' || theme === 'moon' || theme === 'minimal-glass' || theme === 'white') && (
+                    <>
+                        <div className="theme-bg-effect" />
+                        {(theme === 'neon-nebula' || theme === 'cyber-midnight') && (
+                            <div className="theme-bg-effect-2" />
+                        )}
+                    </>
+                )}
 
             <button
                 onClick={onClose}
