@@ -8,12 +8,50 @@ import { v4 as uuidv4 } from 'uuid';
 import { enhanceMarkdown } from './utils/aiEnhancer';
 import { motion, AnimatePresence } from 'framer-motion';
 
-type View = 'dashboard' | 'editor' | 'player';
+type View = 'dashboard' | 'editor' | 'present';
+
+// URL path helpers
+const getPathInfo = () => {
+    const path = window.location.pathname;
+    const hash = window.location.hash;
+
+    if (path.startsWith('/edit/')) {
+        return { view: 'editor' as View, id: path.slice(6) };
+    }
+    if (path.startsWith('/present/')) {
+        const id = path.slice(9);
+        // Parse slide indices from hash (e.g., #/1/2)
+        const slideMatch = hash.match(/^#\/(\d+)(?:\/(\d+))?$/);
+        return {
+            view: 'present' as View,
+            id,
+            slideH: slideMatch ? parseInt(slideMatch[1]) : 0,
+            slideV: slideMatch ? parseInt(slideMatch[2] || '0') : 0
+        };
+    }
+    return { view: 'dashboard' as View, id: null };
+};
+
+const updateUrl = (view: View, id?: string | null, title?: string) => {
+    let path = '/';
+    let pageTitle = 'Presentify';
+
+    if (view === 'editor' && id) {
+        path = `/edit/${id}`;
+        pageTitle = title ? `${title} - Edit | Presentify` : 'Editor | Presentify';
+    } else if (view === 'present' && id) {
+        path = `/present/${id}`;
+        pageTitle = title ? `${title} - Present | Presentify` : 'Presenting | Presentify';
+    }
+
+    window.history.pushState({ view, id }, '', path);
+    document.title = pageTitle;
+};
 
 const App: React.FC = () => {
     const [view, setView] = React.useState<View>('dashboard');
     const [currentId, setCurrentId] = React.useState<string | null>(null);
-    const [previewContent, setPreviewContent] = React.useState<{ markdown: string, theme: string, globalAlignment: 'center' | 'left', fontFamily: string } | null>(null);
+    const [isPresenting, setIsPresenting] = React.useState(false);
 
     // Lifted Editor State
     const [editorMarkdown, setEditorMarkdown] = React.useState('');
@@ -22,13 +60,82 @@ const App: React.FC = () => {
     const [editorGlobalAlignment, setEditorGlobalAlignment] = React.useState<'center' | 'left'>('center');
     const [editorFontFamily, setEditorFontFamily] = React.useState('Outfit');
 
+    // Initialize from URL on mount
+    React.useEffect(() => {
+        const pathInfo = getPathInfo();
+
+        if (pathInfo.view === 'editor' && pathInfo.id) {
+            const p = storage.getPresentationById(pathInfo.id);
+            if (p) {
+                setCurrentId(pathInfo.id);
+                setEditorMarkdown(p.markdown);
+                setEditorTitle(p.title);
+                setEditorTheme(p.theme);
+                setEditorGlobalAlignment(p.globalAlignment || 'center');
+                setEditorFontFamily(p.fontFamily || 'Outfit');
+                setView('editor');
+                document.title = `${p.title} - Edit | Presentify`;
+            } else {
+                // Presentation not found, go to dashboard
+                updateUrl('dashboard');
+                setView('dashboard');
+            }
+        } else if (pathInfo.view === 'present' && pathInfo.id) {
+            const p = storage.getPresentationById(pathInfo.id);
+            if (p) {
+                setCurrentId(pathInfo.id);
+                setEditorMarkdown(p.markdown);
+                setEditorTitle(p.title);
+                setEditorTheme(p.theme);
+                setEditorGlobalAlignment(p.globalAlignment || 'center');
+                setEditorFontFamily(p.fontFamily || 'Outfit');
+                setIsPresenting(true);
+                setView('present');
+                document.title = `${p.title} - Present | Presentify`;
+            } else {
+                updateUrl('dashboard');
+                setView('dashboard');
+            }
+        } else {
+            document.title = 'Presentify - Beautiful Presentations from Markdown';
+        }
+
+        // Handle browser back/forward
+        const handlePopState = (event: PopStateEvent) => {
+            const state = event.state;
+            if (state?.view === 'editor' && state?.id) {
+                const p = storage.getPresentationById(state.id);
+                if (p) {
+                    setCurrentId(state.id);
+                    setEditorMarkdown(p.markdown);
+                    setEditorTitle(p.title);
+                    setEditorTheme(p.theme);
+                    setEditorGlobalAlignment(p.globalAlignment || 'center');
+                    setEditorFontFamily(p.fontFamily || 'Outfit');
+                    setIsPresenting(false);
+                    setView('editor');
+                }
+            } else if (state?.view === 'present' && state?.id) {
+                setIsPresenting(true);
+                setView('present');
+            } else {
+                setIsPresenting(false);
+                setView('dashboard');
+                setCurrentId(null);
+            }
+        };
+
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, []);
+
     const handleCreate = () => {
         const newId = uuidv4();
         const newPresentation: Presentation = {
             id: newId,
             title: 'Untitled Presentation',
-            markdown: '# Welcome to Presentify\n\nEdit this to start!\n\n---\n\n## Second Slide\n\n- Point 1\n- Point 2\n\nMathematical Magic:\n$E = mc^2$\n\n$$\n\\int_{a}^{b} x^2 dx = \\frac{b^3 - a^3}{3}\n$$\n\nNote:\nThese are speaker notes.',
-            theme: 'black',
+            markdown: '# Welcome to Presentify\n\n*A new way to turn Markdown into beautiful presentations*\n\n---\n\n## Getting Started\n\n- Write your content in Markdown\n- Use `---` to separate slides\n- Press **Present** to view\n\n---\n\n## Math Support\n\nInline: $E = mc^2$\n\nBlock:\n$$\\int_{a}^{b} x^2 dx = \\frac{b^3 - a^3}{3}$$\n\nNote:\nThese are speaker notes - only you can see them!',
+            theme: 'presentify-dark',
             globalAlignment: 'center',
             fontFamily: 'Outfit',
             createdAt: Date.now(),
@@ -42,6 +149,7 @@ const App: React.FC = () => {
         setEditorGlobalAlignment(newPresentation.globalAlignment || 'center');
         setEditorFontFamily(newPresentation.fontFamily || 'Outfit');
         setView('editor');
+        updateUrl('editor', newId, newPresentation.title);
     };
 
     const handleSelect = (id: string) => {
@@ -54,6 +162,7 @@ const App: React.FC = () => {
             setEditorGlobalAlignment(p.globalAlignment || 'center');
             setEditorFontFamily(p.fontFamily || 'Outfit');
             setView('editor');
+            updateUrl('editor', id, p.title);
         }
     };
 
@@ -64,23 +173,47 @@ const App: React.FC = () => {
         setEditorGlobalAlignment(p.globalAlignment || 'center');
         setEditorFontFamily(p.fontFamily || 'Outfit');
         storage.savePresentation(p);
+        // Update URL with new title
+        updateUrl('editor', p.id, p.title);
     };
 
     const handleBack = () => {
         setView('dashboard');
         setCurrentId(null);
+        setIsPresenting(false);
+        updateUrl('dashboard');
     };
 
-    const handlePreview = (markdown: string, theme: string, title?: string, globalAlignment: 'center' | 'left' = 'center', fontFamily: string = 'Outfit') => {
-        // Update lifted state before switching to player
-        setEditorMarkdown(markdown);
-        setEditorTheme(theme);
-        setEditorGlobalAlignment(globalAlignment);
-        setEditorFontFamily(fontFamily);
-        if (title !== undefined) setEditorTitle(title);
+    const handlePresent = () => {
+        setIsPresenting(true);
+        setView('present');
+        updateUrl('present', currentId, editorTitle);
+    };
 
-        setPreviewContent({ markdown, theme, globalAlignment, fontFamily });
-        setView('player');
+    const handleExitPresent = () => {
+        setIsPresenting(false);
+        if (currentId) {
+            setView('editor');
+            updateUrl('editor', currentId, editorTitle);
+        } else {
+            setView('dashboard');
+            updateUrl('dashboard');
+        }
+    };
+
+    const handlePlayFromDashboard = (id: string) => {
+        const p = storage.getPresentationById(id);
+        if (p) {
+            setCurrentId(id);
+            setEditorMarkdown(p.markdown);
+            setEditorTitle(p.title);
+            setEditorTheme(p.theme);
+            setEditorGlobalAlignment(p.globalAlignment || 'center');
+            setEditorFontFamily(p.fontFamily || 'Outfit');
+            setIsPresenting(true);
+            setView('present');
+            updateUrl('present', id, p.title);
+        }
     };
 
     const handleAiEnhance = async (markdown: string, onProgress?: (status: string) => void): Promise<string> => {
@@ -101,17 +234,12 @@ const App: React.FC = () => {
                         <Dashboard
                             onSelect={handleSelect}
                             onCreate={handleCreate}
-                            onPlay={(id) => {
-                                const p = storage.getPresentationById(id);
-                                if (p) {
-                                    handlePreview(p.markdown, p.theme, p.title, p.globalAlignment || 'center', p.fontFamily || 'Outfit');
-                                }
-                            }}
+                            onPlay={handlePlayFromDashboard}
                         />
                     </motion.div>
                 )}
 
-                {view === 'editor' && currentId && (
+                {view === 'editor' && currentId && !isPresenting && (
                     <motion.div
                         key="editor"
                         initial={{ opacity: 0 }}
@@ -132,13 +260,13 @@ const App: React.FC = () => {
                             }}
                             onSave={handleSave}
                             onBack={handleBack}
-                            onPreview={handlePreview}
+                            onPresent={handlePresent}
                             onAiEnhance={handleAiEnhance}
                         />
                     </motion.div>
                 )}
 
-                {view === 'player' && previewContent && (
+                {(view === 'present' || isPresenting) && (
                     <motion.div
                         key="player"
                         initial={{ opacity: 0 }}
@@ -147,11 +275,11 @@ const App: React.FC = () => {
                         transition={{ duration: 0.3 }}
                     >
                         <PresentationViewer
-                            markdown={previewContent.markdown}
-                            theme={previewContent.theme}
-                            globalAlignment={previewContent.globalAlignment}
-                            fontFamily={previewContent.fontFamily}
-                            onClose={() => setView(currentId ? 'editor' : 'dashboard')}
+                            markdown={editorMarkdown}
+                            theme={editorTheme}
+                            globalAlignment={editorGlobalAlignment}
+                            fontFamily={editorFontFamily}
+                            onClose={handleExitPresent}
                         />
                     </motion.div>
                 )}

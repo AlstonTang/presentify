@@ -10,11 +10,11 @@ interface EditorProps {
     presentation: Presentation;
     onSave: (presentation: Presentation) => void;
     onBack: () => void;
-    onPreview: (markdown: string, theme: string, title: string, globalAlignment: 'center' | 'left', fontFamily: string) => void;
+    onPresent: () => void;
     onAiEnhance: (markdown: string, onProgress?: (status: string) => void) => Promise<string>;
 }
 
-export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, onPreview, onAiEnhance }) => {
+export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, onPresent, onAiEnhance }) => {
     const [markdown, setMarkdown] = React.useState(presentation.markdown);
     const [title, setTitle] = React.useState(presentation.title);
     const [theme, setTheme] = React.useState(presentation.theme || 'black');
@@ -92,7 +92,7 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
         const printWindow = window.open('', '_blank');
         if (!printWindow) return;
 
-        const slidesHtml = slides.map((slide, idx) => `
+        const slidesHtml = slides.map((slide) => `
             <div class="slide" style="page-break-after: always; height: 100vh; display: flex; align-items: center; justify-content: center; padding: 40px; box-sizing: border-box;">
                 <div style="max-width: 800px; text-align: ${globalAlignment};">
                     ${slide.content.split('\n').map(line => {
@@ -279,8 +279,12 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
                         </button>
 
                         <button
-                            onClick={() => onPreview(markdown, theme, title, globalAlignment, fontFamily)}
-                            className="px-5 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl font-semibold flex items-center gap-2 transition-all"
+                            onClick={() => {
+                                // Save current state before presenting
+                                onSave({ ...presentation, title, markdown, theme, globalAlignment, fontFamily });
+                                onPresent();
+                            }}
+                            className="px-5 py-2.5 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-300 rounded-xl font-semibold flex items-center gap-2 transition-all"
                         >
                             <PresentationIcon size={18} />
                             <span>Present</span>
@@ -331,10 +335,10 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
                             onClick={handleSave}
                             disabled={!hasChanges && !isSaved}
                             className={`px-5 py-2.5 rounded-xl font-semibold flex items-center gap-2 transition-all border ${isSaved
-                                    ? 'bg-green-500/20 border-green-500/50 text-green-400'
-                                    : hasChanges
-                                        ? 'bg-violet-500/20 border-violet-500/50 text-violet-300 hover:bg-violet-500/30'
-                                        : 'bg-white/5 border-white/10 text-text-dim cursor-not-allowed opacity-50'
+                                ? 'bg-green-500/20 border-green-500/50 text-green-400'
+                                : hasChanges
+                                    ? 'bg-violet-500/20 border-violet-500/50 text-violet-300 hover:bg-violet-500/30'
+                                    : 'bg-white/5 border-white/10 text-text-dim cursor-not-allowed opacity-50'
                                 }`}
                         >
                             {isSaved ? <Check size={18} /> : <Save size={18} />}
@@ -458,43 +462,71 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
 
                             {/* Slide Preview */}
                             <div className="flex-1 p-4 overflow-hidden">
-                                <div className="w-full aspect-video bg-gradient-to-br from-slate-900 to-slate-950 rounded-xl border border-white/10 overflow-hidden flex items-center justify-center p-4">
-                                    <div className={`text-center w-full ${globalAlignment === 'left' ? 'text-left' : ''}`}>
+                                <div
+                                    className={`w-full aspect-video rounded-xl border border-white/10 overflow-hidden flex items-center justify-center p-4 ${theme === 'presentify-dark' ? 'bg-gradient-to-br from-indigo-950/80 via-purple-950/60 to-pink-950/40' :
+                                        theme === 'neon-nebula' ? 'bg-gradient-to-br from-purple-950 via-fuchsia-950/80 to-pink-950/60' :
+                                            theme === 'cyber-midnight' ? 'bg-[#030712]' :
+                                                theme === 'blood' ? 'bg-gradient-to-br from-red-950/80 to-black' :
+                                                    theme === 'night' ? 'bg-gradient-to-b from-slate-950 to-blue-950/50' :
+                                                        theme === 'moon' ? 'bg-slate-900' :
+                                                            (theme === 'white' || theme === 'minimal-glass') ? 'bg-gradient-to-br from-gray-100 to-gray-200' :
+                                                                'bg-gradient-to-br from-slate-900 to-slate-950'
+                                        }`}
+                                >
+                                    <div className={`w-full ${globalAlignment === 'left' ? 'text-left' : 'text-center'}`} style={{ fontFamily: `'${fontFamily}', sans-serif` }}>
                                         {slides[currentPreviewSlide]?.content.split('\n').slice(0, 8).map((line, idx) => {
-                                            if (line.startsWith('# ')) return <h1 key={idx} className="text-lg font-bold text-white mb-2 truncate">{line.slice(2)}</h1>;
-                                            if (line.startsWith('## ')) return <h2 key={idx} className="text-base font-semibold text-white/90 mb-1.5 truncate">{line.slice(3)}</h2>;
-                                            if (line.startsWith('### ')) return <h3 key={idx} className="text-sm font-medium text-white/80 mb-1 truncate">{line.slice(4)}</h3>;
-                                            if (line.startsWith('- ')) return <p key={idx} className="text-xs text-white/60 mb-0.5 truncate">• {line.slice(2)}</p>;
-                                            if (line.trim() && !line.startsWith('Note:') && !line.startsWith('$$') && !line.startsWith('$')) {
-                                                return <p key={idx} className="text-xs text-white/50 truncate">{line}</p>;
-                                            }
+                                            const isLightTheme = theme === 'white' || theme === 'minimal-glass';
+                                            const headingColor = isLightTheme ? 'text-slate-900' :
+                                                theme === 'presentify-dark' ? 'text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 via-purple-300 to-pink-300' :
+                                                    theme === 'neon-nebula' ? 'text-pink-300' :
+                                                        theme === 'cyber-midnight' ? 'text-emerald-400' :
+                                                            theme === 'blood' ? 'text-red-300' : 'text-white';
+                                            const textColor = isLightTheme ? 'text-slate-600' : 'text-white/70';
+
+                                            if (line.startsWith('# ')) return <h1 key={idx} className={`text-lg font-bold ${headingColor} mb-2 truncate`}>{line.slice(2)}</h1>;
+                                            if (line.startsWith('## ')) return <h2 key={idx} className={`text-base font-semibold ${headingColor} opacity-90 mb-1.5 truncate`}>{line.slice(3)}</h2>;
+                                            if (line.startsWith('### ')) return <h3 key={idx} className={`text-sm font-medium ${textColor} mb-1 truncate`}>{line.slice(4)}</h3>;
+                                            if (line.startsWith('- ')) return <p key={idx} className={`text-xs ${textColor} mb-0.5 truncate`}>• {line.slice(2)}</p>;
+                                            if (line.includes('$')) return <p key={idx} className={`text-xs ${textColor} italic truncate`}>📐 Math</p>;
+                                            if (line.trim() && !line.startsWith('Note:')) return <p key={idx} className={`text-xs ${textColor} truncate`}>{line}</p>;
                                             return null;
                                         })}
                                     </div>
                                 </div>
                             </div>
 
+
                             {/* Slide Thumbnails */}
                             <div className="p-4 border-t border-white/5 overflow-x-auto">
                                 <div className="flex gap-2">
-                                    {slides.map((slide, idx) => (
-                                        <button
-                                            key={idx}
-                                            onClick={() => setCurrentPreviewSlide(idx)}
-                                            className={`shrink-0 w-16 h-10 rounded-lg border overflow-hidden transition-all ${idx === currentPreviewSlide
+                                    {slides.map((slide, idx) => {
+                                        const isLightTheme = theme === 'white' || theme === 'minimal-glass';
+                                        const thumbBg =
+                                            theme === 'presentify-dark' ? 'bg-gradient-to-br from-indigo-950 to-purple-950' :
+                                                theme === 'neon-nebula' ? 'bg-gradient-to-br from-purple-950 to-pink-950' :
+                                                    theme === 'cyber-midnight' ? 'bg-[#030712]' :
+                                                        theme === 'blood' ? 'bg-red-950' :
+                                                            isLightTheme ? 'bg-gray-200' : 'bg-slate-900';
+                                        return (
+                                            <button
+                                                key={idx}
+                                                onClick={() => setCurrentPreviewSlide(idx)}
+                                                className={`shrink-0 w-16 h-10 rounded-lg border overflow-hidden transition-all ${idx === currentPreviewSlide
                                                     ? 'border-violet-500 ring-2 ring-violet-500/30'
                                                     : 'border-white/10 hover:border-white/30'
-                                                } ${slide.isSubSlide ? 'opacity-60' : ''}`}
-                                        >
-                                            <div className="w-full h-full bg-slate-900 flex items-center justify-center p-1">
-                                                <span className="text-[8px] text-white/40 truncate">
-                                                    {slide.content.split('\n')[0]?.slice(0, 10) || `Slide ${idx + 1}`}
-                                                </span>
-                                            </div>
-                                        </button>
-                                    ))}
+                                                    } ${slide.isSubSlide ? 'opacity-60' : ''}`}
+                                            >
+                                                <div className={`w-full h-full ${thumbBg} flex items-center justify-center p-1`}>
+                                                    <span className={`text-[8px] truncate ${isLightTheme ? 'text-slate-600' : 'text-white/40'}`}>
+                                                        {slide.content.split('\n')[0]?.replace(/^#+\s*/, '').slice(0, 10) || `Slide ${idx + 1}`}
+                                                    </span>
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             </div>
+
                         </motion.div>
                     )}
                 </AnimatePresence>
