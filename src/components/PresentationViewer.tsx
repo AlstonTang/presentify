@@ -47,6 +47,7 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({ markdown
         const style = document.createElement('style');
         style.id = customStyleId;
 
+        // Base styles with crisp rendering
         let customCss = `
             @keyframes orbit {
                 0% { transform: translate(-10%, -10%) rotate(0deg); }
@@ -54,96 +55,269 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({ markdown
                 100% { transform: translate(-10%, -10%) rotate(360deg); }
             }
             @keyframes pulse-ring {
-                0% { transform: scale(0.8); opacity: 0.1; }
-                50% { transform: scale(1.3); opacity: 0.2; }
-                100% { transform: scale(0.8); opacity: 0.1; }
+                0% { transform: scale(0.9); opacity: 0.15; }
+                50% { transform: scale(1.1); opacity: 0.25; }
+                100% { transform: scale(0.9); opacity: 0.15; }
             }
-            .reveal { font-family: '${fontFamily}', sans-serif !important; }
+            @keyframes shimmer {
+                0% { background-position: -200% 0; }
+                100% { background-position: 200% 0; }
+            }
+
+            /* Force crisp text rendering */
+            .reveal, .reveal * {
+                -webkit-font-smoothing: antialiased;
+                -moz-osx-font-smoothing: grayscale;
+                text-rendering: optimizeLegibility;
+            }
+
+            .reveal { 
+                font-family: '${fontFamily}', system-ui, sans-serif !important; 
+            }
             .reveal h1, .reveal h2, .reveal h3 { 
-                font-family: '${fontFamily}', sans-serif !important; 
+                font-family: '${fontFamily}', system-ui, sans-serif !important; 
                 font-weight: 800 !important; 
                 text-transform: none !important; 
                 margin-bottom: 0.5em !important;
+                letter-spacing: -0.02em;
             }
             .reveal p, .reveal li { 
-                font-family: '${fontFamily}', sans-serif !important; 
-                line-height: 1.6 !important; 
+                font-family: '${fontFamily}', system-ui, sans-serif !important; 
+                line-height: 1.7 !important; 
             }
-            .reveal-viewport { background: #000 !important; }
+
+            /* Full viewport background - no shrinking */
+            .reveal-viewport { 
+                background: #000 !important;
+                position: fixed !important;
+                inset: 0 !important;
+                width: 100vw !important;
+                height: 100vh !important;
+            }
+
+            /* Ensure slides don't clip backgrounds */
+            .reveal .slides {
+                background: transparent !important;
+            }
+            .reveal .slides > section,
+            .reveal .slides > section > section {
+                background: transparent !important;
+            }
 
             /* Alignment classes */
             .reveal .align-left { text-align: left !important; }
             .reveal .align-left > * { text-align: left !important; }
-            .reveal .align-left ul, .reveal .align-left ol { display: block; }
+            .reveal .align-left ul, .reveal .align-left ol { display: block; margin-left: 1em; }
         `;
 
+        // Theme-specific immersive backgrounds
         if (theme === 'presentify-dark') {
             customCss += `
-                .reveal-viewport { background: #010208 !important; }
-                .reveal-viewport::before {
-                    content: ''; position: fixed; inset: -100%;
-                    background: radial-gradient(circle at 20% 30%, #4338ca 0%, transparent 40%),
-                                radial-gradient(circle at 80% 70%, #7e22ce 0%, transparent 40%),
-                                radial-gradient(circle at 50% 50%, #db2777 0%, transparent 40%);
-                    filter: blur(150px); animation: orbit 40s linear infinite; z-index: -1; opacity: 0.4;
+                .reveal-viewport { 
+                    background: #050010 !important;
+                    overflow: visible !important;
                 }
+                .presentify-aurora {
+                    position: fixed;
+                    inset: -100px;
+                    width: calc(100% + 200px);
+                    height: calc(100% + 200px);
+                    background: 
+                        radial-gradient(ellipse 80% 60% at 20% 30%, rgba(99, 102, 241, 0.5) 0%, transparent 60%),
+                        radial-gradient(ellipse 70% 70% at 80% 70%, rgba(168, 85, 247, 0.45) 0%, transparent 60%),
+                        radial-gradient(ellipse 60% 50% at 60% 20%, rgba(236, 72, 153, 0.4) 0%, transparent 50%);
+                    filter: blur(60px);
+                    animation: orbit 50s linear infinite;
+                    z-index: 0;
+                    pointer-events: none;
+                }
+                .reveal { position: relative; z-index: 1; }
                 .reveal h1, .reveal h2 { 
-                    background: linear-gradient(to right, #a5b4fc, #d8b4fe, #fb7185);
-                    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-                    font-size: 3.5em !important; filter: drop-shadow(0 0 30px rgba(139, 92, 246, 0.4));
+                    background: linear-gradient(135deg, #a5b4fc 0%, #c4b5fd 50%, #f9a8d4 100%);
+                    -webkit-background-clip: text;
+                    -webkit-text-fill-color: transparent;
+                    background-clip: text;
+                    font-size: 3.2em !important;
+                    filter: drop-shadow(0 4px 20px rgba(139, 92, 246, 0.3));
                 }
-                .reveal section { background: rgba(255,255,255,0.02); backdrop-filter: blur(50px); border: 1px solid rgba(255,255,255,0.08); border-radius: 4rem; padding: 80px !important; box-shadow: 0 50px 100px -20px rgba(0,0,0,0.8); }
+                .reveal h3 { color: #e0e7ff !important; }
+                .reveal p, .reveal li { color: #c7d2fe !important; }
             `;
         } else if (theme === 'neon-nebula') {
             customCss += `
-                .reveal-viewport { background: #050112 !important; }
-                .reveal-viewport::before { content: ''; position: fixed; inset: 0; background: radial-gradient(circle at 50% 50%, #2e1065 0%, #050112 100%); z-index: -1; }
-                .reveal-viewport::after { content: ''; position: fixed; width: 100vmax; height: 100vmax; top: 50%; left: 50%; transform: translate(-50%, -50%); background: radial-gradient(circle, #db2777 0%, transparent 70%); filter: blur(180px); animation: pulse-ring 20s ease-in-out infinite; opacity: 0.2; z-index: -1; }
-                .reveal h1 { color: #fff !important; text-shadow: 0 0 20px #db2777, 0 0 50px #db2777, 0 0 100px #7e22ce !important; font-size: 4.5em !important; }
-                .reveal section { background: transparent !important; }
+                .reveal-viewport { 
+                    background: linear-gradient(135deg, #0c0015 0%, #1a0a2e 50%, #0f051d 100%) !important;
+                }
+                .reveal-viewport::before {
+                    content: '';
+                    position: fixed;
+                    inset: 0;
+                    width: 100vw;
+                    height: 100vh;
+                    background: radial-gradient(circle at 50% 50%, rgba(219, 39, 119, 0.15) 0%, transparent 60%);
+                    animation: pulse-ring 8s ease-in-out infinite;
+                    z-index: 0;
+                    pointer-events: none;
+                }
+                .reveal-viewport::after {
+                    content: '';
+                    position: fixed;
+                    inset: 0;
+                    background: radial-gradient(circle at 30% 70%, rgba(124, 58, 237, 0.2) 0%, transparent 50%);
+                    z-index: 0;
+                    pointer-events: none;
+                }
+                .reveal { position: relative; z-index: 1; }
+                .reveal h1 { 
+                    color: #fff !important;
+                    text-shadow: 0 0 40px rgba(219, 39, 119, 0.8), 0 0 80px rgba(124, 58, 237, 0.5) !important;
+                    font-size: 4em !important;
+                }
+                .reveal h2, .reveal h3 { color: #f9a8d4 !important; }
+                .reveal p, .reveal li { color: #e9d5ff !important; }
             `;
         } else if (theme === 'cyber-midnight') {
             customCss += `
-                .reveal-viewport { background: #010409 !important; }
-                .reveal-viewport::before { content: ''; position: fixed; inset: 0; background-image: linear-gradient(rgba(16, 185, 129, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(16, 185, 129, 0.05) 1px, transparent 1px); background-size: 80px 80px; z-index: -1; }
-                .reveal h1 { color: #10b981 !important; font-family: 'JetBrains Mono', monospace !important; text-shadow: 0 0 20px rgba(16, 185, 129, 0.4) !important; font-size: 4em !important; border-left: 12px solid #10b981; padding-left: 30px !important; text-align: left !important; }
-                .reveal section { border: 1px solid rgba(16, 185, 129, 0.2); background: rgba(1, 4, 9, 0.85); border-radius: 0.25rem; padding: 60px !important; }
+                .reveal-viewport { 
+                    background: #030712 !important;
+                }
+                .reveal-viewport::before {
+                    content: '';
+                    position: fixed;
+                    inset: 0;
+                    background-image: 
+                        linear-gradient(rgba(16, 185, 129, 0.03) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(16, 185, 129, 0.03) 1px, transparent 1px);
+                    background-size: 60px 60px;
+                    z-index: 0;
+                    pointer-events: none;
+                }
+                .reveal-viewport::after {
+                    content: '';
+                    position: fixed;
+                    bottom: 0;
+                    left: 0;
+                    right: 0;
+                    height: 40%;
+                    background: linear-gradient(to top, rgba(16, 185, 129, 0.05) 0%, transparent 100%);
+                    z-index: 0;
+                    pointer-events: none;
+                }
+                .reveal { position: relative; z-index: 1; }
+                .reveal h1 { 
+                    color: #34d399 !important;
+                    font-family: 'JetBrains Mono', monospace !important;
+                    text-shadow: 0 0 30px rgba(16, 185, 129, 0.5) !important;
+                    font-size: 3.5em !important;
+                    border-left: 6px solid #10b981;
+                    padding-left: 24px !important;
+                }
+                .reveal h2, .reveal h3 { color: #6ee7b7 !important; }
+                .reveal p, .reveal li { color: #a7f3d0 !important; }
             `;
         } else if (theme === 'blood') {
             customCss += `
-                .reveal-viewport { background: #080000 !important; }
-                .reveal-viewport::before {
-                    content: ''; position: fixed; inset: -50%;
-                    background: radial-gradient(circle at 50% 50%, #450a0a 0%, transparent 60%);
-                    filter: blur(100px); animation: pulse-ring 10s ease-in-out infinite; z-index: -1;
+                .reveal-viewport { 
+                    background: radial-gradient(ellipse at center, #1a0000 0%, #000 100%) !important;
                 }
-                .reveal h1, .reveal h2 { color: #f87171 !important; text-shadow: 0 0 30px rgba(220, 38, 38, 0.5) !important; font-size: 4em !important; }
-                .reveal section { background: rgba(0,0,0,0.4); backdrop-filter: blur(20px); border: 1px solid rgba(220, 38, 38, 0.2); border-radius: 2rem; padding: 60px !important; }
+                .reveal-viewport::before {
+                    content: '';
+                    position: fixed;
+                    inset: -20%;
+                    width: 140%;
+                    height: 140%;
+                    background: radial-gradient(circle at 50% 30%, rgba(127, 29, 29, 0.4) 0%, transparent 60%);
+                    animation: pulse-ring 12s ease-in-out infinite;
+                    z-index: 0;
+                    pointer-events: none;
+                }
+                .reveal { position: relative; z-index: 1; }
+                .reveal h1, .reveal h2 { 
+                    color: #fca5a5 !important;
+                    text-shadow: 0 0 40px rgba(220, 38, 38, 0.6) !important;
+                    font-size: 3.5em !important;
+                }
+                .reveal h3 { color: #f87171 !important; }
+                .reveal p, .reveal li { color: #fecaca !important; }
             `;
         } else if (theme === 'night') {
             customCss += `
-                .reveal-viewport { background: #020617 !important; }
-                .reveal-viewport::before {
-                    content: ''; position: fixed; inset: -100%;
-                    background: radial-gradient(circle at 10% 10%, #1e3a8a 0%, transparent 40%), radial-gradient(circle at 90% 90%, #172554 0%, transparent 40%);
-                    filter: blur(120px); animation: orbit 60s linear infinite; z-index: -1;
+                .reveal-viewport { 
+                    background: linear-gradient(180deg, #020617 0%, #0f172a 100%) !important;
                 }
-                .reveal h1 { color: #f8fafc !important; text-shadow: 0 10px 30px rgba(0,0,0,0.5) !important; filter: drop-shadow(0 0 20px rgba(56, 189, 248, 0.2)); }
+                .reveal-viewport::before {
+                    content: '';
+                    position: fixed;
+                    inset: -50%;
+                    width: 200%;
+                    height: 200%;
+                    background: 
+                        radial-gradient(circle at 15% 20%, rgba(30, 58, 138, 0.4) 0%, transparent 40%),
+                        radial-gradient(circle at 85% 80%, rgba(23, 37, 84, 0.5) 0%, transparent 50%);
+                    animation: orbit 80s linear infinite;
+                    z-index: 0;
+                    pointer-events: none;
+                }
+                .reveal { position: relative; z-index: 1; }
+                .reveal h1 { 
+                    color: #f8fafc !important;
+                    text-shadow: 0 8px 30px rgba(0,0,0,0.5) !important;
+                    filter: drop-shadow(0 0 20px rgba(56, 189, 248, 0.15));
+                }
+                .reveal h2, .reveal h3 { color: #e2e8f0 !important; }
+                .reveal p, .reveal li { color: #cbd5e1 !important; }
             `;
         } else if (theme === 'moon') {
             customCss += `
-                .reveal-viewport { background: #0f172a !important; }
-                .reveal-viewport::before {
-                    content: ''; position: fixed; inset: 0; background: radial-gradient(circle at 50% 50%, #334155 0%, #0f172a 100%); z-index: -1;
+                .reveal-viewport { 
+                    background: radial-gradient(ellipse at 30% 20%, #1e293b 0%, #0f172a 100%) !important;
                 }
-                .reveal section { background: rgba(255,255,255,0.03); backdrop-filter: blur(30px); border: 1px solid rgba(255,255,255,0.1); border-radius: 3rem; }
+                .reveal-viewport::before {
+                    content: '';
+                    position: fixed;
+                    inset: 0;
+                    background: radial-gradient(circle at 70% 30%, rgba(100, 116, 139, 0.15) 0%, transparent 50%);
+                    z-index: 0;
+                    pointer-events: none;
+                }
+                .reveal { position: relative; z-index: 1; }
+                .reveal h1, .reveal h2 { color: #f1f5f9 !important; }
+                .reveal h3 { color: #cbd5e1 !important; }
+                .reveal p, .reveal li { color: #94a3b8 !important; }
             `;
         } else if (theme === 'minimal-glass' || theme === 'white') {
             customCss += `
-                .reveal-viewport { background: #fdfdfd !important; }
-                .reveal-viewport::before { content: ''; position: fixed; inset: 0; background: radial-gradient(at 0% 0%, #f1f5f9 0, transparent 50%), radial-gradient(at 100% 100%, #e2e8f0 0, transparent 50%); z-index: -1; }
-                .reveal section { background: rgba(255,255,255,0.6); backdrop-filter: blur(30px); border: 1px solid rgba(255,255,255,0.9); box-shadow: 0 60px 120px -30px rgba(0,0,0,0.08); border-radius: 5rem; padding: 100px !important; }
-                .reveal h1 { color: #0f172a !important; font-size: 4.5em !important; letter-spacing: -3px; }
+                .reveal-viewport { 
+                    background: linear-gradient(135deg, #fafafa 0%, #f1f5f9 50%, #e2e8f0 100%) !important;
+                }
+                .reveal-viewport::before {
+                    content: '';
+                    position: fixed;
+                    inset: 0;
+                    background: 
+                        radial-gradient(circle at 10% 10%, rgba(99, 102, 241, 0.05) 0%, transparent 40%),
+                        radial-gradient(circle at 90% 90%, rgba(168, 85, 247, 0.05) 0%, transparent 40%);
+                    z-index: 0;
+                    pointer-events: none;
+                }
+                .reveal { position: relative; z-index: 1; }
+                .reveal h1 { 
+                    color: #0f172a !important;
+                    font-size: 4em !important;
+                    letter-spacing: -0.03em;
+                }
+                .reveal h2, .reveal h3 { color: #1e293b !important; }
+                .reveal p, .reveal li { color: #334155 !important; }
+            `;
+        } else if (theme === 'black') {
+            customCss += `
+                .reveal-viewport { 
+                    background: radial-gradient(ellipse at center, #111 0%, #000 100%) !important;
+                }
+                .reveal { position: relative; z-index: 1; }
+                .reveal h1, .reveal h2 { color: #fff !important; }
+                .reveal h3 { color: #e5e5e5 !important; }
+                .reveal p, .reveal li { color: #d4d4d4 !important; }
             `;
         }
 
@@ -153,11 +327,11 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({ markdown
         if (deckRef.current) {
             const deck = new Reveal(deckRef.current, {
                 plugins: [Markdown, Notes, Math.KaTeX],
-                width: window.screen.width,
-                height: window.screen.height,
-                margin: 0.1,
-                minScale: 0.1,
-                maxScale: 2.0,
+                width: 1920,
+                height: 1080,
+                margin: 0.08,
+                minScale: 0.2,
+                maxScale: 1.5,
                 embedded: false,
                 hash: true,
                 mouseWheel: true,
@@ -180,8 +354,7 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({ markdown
             });
 
             deck.initialize().then(() => {
-                setTimeout(() => { deck.layout(); }, 100);
-                setTimeout(() => { deck.layout(); }, 500);
+                deck.layout();
             });
         }
 
@@ -206,19 +379,22 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({ markdown
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-black flex flex-col"
+            className="fixed inset-0 z-[100] bg-black"
         >
-            <div className="absolute top-8 right-8 z-[110] flex gap-3">
-                <button
-                    onClick={onClose}
-                    className="w-14 h-14 flex items-center justify-center bg-white/10 hover:bg-white/20 backdrop-blur-3xl border border-white/20 rounded-2xl text-white transition-all hover:scale-110 active:scale-90 shadow-2xl"
-                    title="Exit Presentation"
-                >
-                    <X size={28} />
-                </button>
-            </div>
+            {/* Aurora background for presentify-dark theme */}
+            {theme === 'presentify-dark' && (
+                <div className="presentify-aurora" />
+            )}
 
-            <div className="reveal" ref={deckRef}>
+            <button
+                onClick={onClose}
+                className="fixed top-6 right-6 z-[110] w-12 h-12 flex items-center justify-center bg-black/50 hover:bg-black/70 backdrop-blur-xl border border-white/10 rounded-xl text-white/70 hover:text-white transition-all hover:scale-105 active:scale-95"
+                title="Exit (ESC)"
+            >
+                <X size={24} />
+            </button>
+
+            <div className="reveal h-full w-full" ref={deckRef}>
                 <div className="slides">
                     {slides.map((slide, index) => (
                         slide.type === 'vertical' && slide.subSlides ? (
