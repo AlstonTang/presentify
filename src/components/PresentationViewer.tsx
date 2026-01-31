@@ -4,6 +4,7 @@ import Markdown from 'reveal.js/plugin/markdown/markdown.esm.js';
 import Notes from 'reveal.js/plugin/notes/notes.esm.js';
 import Math from 'reveal.js/plugin/math/math.esm.js';
 import { parseMarkdownToSlides } from '../utils/markdownParser';
+import mermaid from 'mermaid';
 import { X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getTheme } from '../utils/themes';
@@ -140,9 +141,59 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({ markdown
         style.appendChild(document.createTextNode(customCss));
         document.head.appendChild(style);
 
+        // 3. Initialize Mermaid
+        const mermaidTheme = themeConfig.baseTheme === 'white' ? 'default' : 'dark';
+        mermaid.initialize({ startOnLoad: false, theme: mermaidTheme });
+
+        const MermaidPlugin = {
+            id: 'mermaid',
+            init: (deck: any) => {
+                const initAllSlides = () => {
+                    const revealEl = deck.getRevealElement();
+                    const codeBlocks = revealEl.querySelectorAll('pre code.language-mermaid, pre code.mermaid');
+                    codeBlocks.forEach((block: HTMLElement) => {
+                        const pre = block.parentElement;
+                        if (pre && pre.tagName === 'PRE') {
+                            const div = document.createElement('div');
+                            div.className = 'mermaid';
+                            div.setAttribute('data-rendered', 'false');
+                            div.textContent = block.textContent || '';
+                            div.style.textAlign = 'center';
+                            pre.replaceWith(div);
+                        }
+                    });
+                };
+
+                const renderVisibleSlides = async () => {
+                    const slide = deck.getCurrentSlide();
+                    if (!slide) return;
+                    const nodes = Array.from(slide.querySelectorAll('.mermaid[data-rendered="false"]')) as HTMLElement[];
+                    if (nodes.length > 0) {
+                        nodes.forEach(n => n.setAttribute('data-rendered', 'processing'));
+                        try {
+                            await mermaid.run({ nodes });
+                            nodes.forEach(n => n.setAttribute('data-rendered', 'true'));
+                        } catch (err) {
+                            console.error('Mermaid error', err);
+                            nodes.forEach(n => n.setAttribute('data-rendered', 'error'));
+                        }
+                    }
+                };
+
+                deck.on('ready', () => {
+                    initAllSlides();
+                    renderVisibleSlides();
+                });
+
+                deck.on('slidechanged', () => {
+                    renderVisibleSlides();
+                });
+            }
+        };
+
         if (deckRef.current) {
             const deck = new Reveal(deckRef.current, {
-                plugins: [Markdown, Notes, Math.KaTeX],
+                plugins: [Markdown, Notes, Math.KaTeX, MermaidPlugin as any],
                 width: 1920,
                 height: 1080,
                 margin: 0.08,
