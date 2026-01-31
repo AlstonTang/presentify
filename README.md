@@ -8,7 +8,7 @@ A web-based application to convert markdown into a presentation
 
 ## Resizing
 - **Images**: `![Alt](url =WxH)` or `![Alt](url =W)`.
-- **Mermaid**: Add `%% size: 50%` as the first line of the code block.
+- **Mermaid**: Add `%% size: <percent>%` as the first line of the code block.
 
 ## Fun Fact
 You can *literally* turn this very *document* into a Presentify presentation!
