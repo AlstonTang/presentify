@@ -166,16 +166,23 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
                             div.className = 'mermaid';
                             div.setAttribute('data-rendered', 'false');
 
-                            // Check for size directive: %% size: 50%
+                            // Check for size directive: %% size: 50% or %% size: 1.5x
                             let content = block.textContent || '';
-                            const sizeMatch = content.match(/^\s*%% ?size:\s*([^%\n]+%?)/m);
+                            const sizeMatch = content.match(/^\s*%% ?size:\s*([^\n\r]+)/m);
                             if (sizeMatch) {
-                                div.style.width = sizeMatch[1];
-                                div.style.maxWidth = '100%';
+                                const sizeVal = sizeMatch[1].trim();
+                                if (sizeVal.toLowerCase().endsWith('x')) {
+                                    div.setAttribute('data-scale', sizeVal.slice(0, -1));
+                                } else {
+                                    div.style.width = sizeVal;
+                                    div.style.maxWidth = 'none';
+                                }
                                 div.style.margin = '0 auto';
-                                // Remove the directive line so Mermaid doesn't render it
-                                content = content.replace(/^\s*%% ?size:\s*[^%\n]+%?(\r\n|\n|\r)/, '');
+                                div.style.display = 'block';
+                                // Remove the directive line
+                                content = content.replace(/^\s*%% ?size:\s*[^\n\r]+(\r\n|\n|\r)?/, '');
                             } else {
+                                div.style.width = '100%';
                                 div.style.textAlign = 'center';
                             }
 
@@ -193,7 +200,21 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
                         nodes.forEach(n => n.setAttribute('data-rendered', 'processing'));
                         try {
                             await mermaid.run({ nodes });
-                            nodes.forEach(n => n.setAttribute('data-rendered', 'true'));
+                            nodes.forEach(n => {
+                                const svg = n.querySelector('svg');
+                                if (svg) {
+                                    svg.style.maxWidth = 'none';
+                                    const scale = n.getAttribute('data-scale');
+                                    if (scale) {
+                                        svg.style.transform = `scale(${scale})`;
+                                        svg.style.transformOrigin = 'center top';
+                                    } else {
+                                        svg.style.width = '100%';
+                                        svg.style.height = 'auto';
+                                    }
+                                }
+                                n.setAttribute('data-rendered', 'true');
+                            });
                         } catch (err) {
                             console.error('Mermaid error', err);
                             nodes.forEach(n => n.setAttribute('data-rendered', 'error'));
