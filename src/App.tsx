@@ -2,6 +2,7 @@ import React from 'react';
 import { Dashboard } from './components/Dashboard';
 import { Editor } from './components/Editor';
 import { PresentationViewer } from './components/PresentationViewer';
+import { Settings } from './components/Settings';
 import type { Presentation } from './types';
 import { storage } from './utils/storage';
 import { v4 as uuidv4 } from 'uuid';
@@ -29,11 +30,12 @@ const getPathInfo = () => {
             slideV: slideMatch ? parseInt(slideMatch[2] || '0') : 0
         };
     }
-    return { view: 'dashboard' as View, id: null };
+    return { view: 'dashboard' as View, id: null, slideH: 0, slideV: 0 };
 };
 
-const updateUrl = (view: View, id?: string | null, title?: string) => {
+const updateUrl = (view: View, id?: string | null, title?: string, indices?: [number, number]) => {
     let path = '/';
+    let hash = '';
     let pageTitle = 'Presentify';
 
     if (view === 'editor' && id) {
@@ -42,9 +44,12 @@ const updateUrl = (view: View, id?: string | null, title?: string) => {
     } else if (view === 'present' && id) {
         path = `/present/${id}`;
         pageTitle = title ? `${title} - Present | Presentify` : 'Presenting | Presentify';
+        if (indices) {
+            hash = `#/${indices[0]}/${indices[1]}`;
+        }
     }
 
-    window.history.pushState({ view, id }, '', path);
+    window.history.pushState({ view, id }, '', path + hash);
     document.title = pageTitle;
 };
 
@@ -52,6 +57,8 @@ const App: React.FC = () => {
     const [view, setView] = React.useState<View>('dashboard');
     const [currentId, setCurrentId] = React.useState<string | null>(null);
     const [isPresenting, setIsPresenting] = React.useState(false);
+    const [startIndices, setStartIndices] = React.useState<[number, number] | undefined>(undefined);
+    const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
 
     // Lifted Editor State
     const [editorMarkdown, setEditorMarkdown] = React.useState('');
@@ -89,6 +96,7 @@ const App: React.FC = () => {
                 setEditorTheme(p.theme);
                 setEditorGlobalAlignment(p.globalAlignment || 'center');
                 setEditorFontFamily(p.fontFamily || 'Outfit');
+                setStartIndices([pathInfo.slideH || 0, pathInfo.slideV || 0]);
                 setIsPresenting(true);
                 setView('present');
                 document.title = `${p.title} - Present | Presentify`;
@@ -130,14 +138,15 @@ const App: React.FC = () => {
     }, []);
 
     const handleCreate = () => {
+        const settings = storage.getSettings();
         const newId = uuidv4();
         const newPresentation: Presentation = {
             id: newId,
             title: 'Untitled Presentation',
             markdown: '# Welcome to Presentify\n\n*A new way to turn Markdown into beautiful presentations*\n\n---\n\n## Getting Started\n\n- Write your content in Markdown\n- Use `---` to separate slides\n- Press **Present** to view\n\n---\n\n## Math Support\n\nInline: $E = mc^2$\n\nBlock:\n$$\\int_{a}^{b} x^2 dx = \\frac{b^3 - a^3}{3}$$\n\nNote:\nThese are speaker notes - only you can see them!',
-            theme: 'presentify-dark',
-            globalAlignment: 'center',
-            fontFamily: 'Outfit',
+            theme: settings.defaultTheme,
+            globalAlignment: settings.defaultAlignment,
+            fontFamily: settings.defaultFontFamily,
             createdAt: Date.now(),
             updatedAt: Date.now()
         };
@@ -184,10 +193,11 @@ const App: React.FC = () => {
         updateUrl('dashboard');
     };
 
-    const handlePresent = () => {
+    const handlePresent = (indices?: [number, number]) => {
+        setStartIndices(indices);
         setIsPresenting(true);
         setView('present');
-        updateUrl('present', currentId, editorTitle);
+        updateUrl('present', currentId, editorTitle, indices);
     };
 
     const handleExitPresent = () => {
@@ -233,6 +243,7 @@ const App: React.FC = () => {
                             onSelect={handleSelect}
                             onCreate={handleCreate}
                             onPlay={handlePlayFromDashboard}
+                            onSettings={() => setIsSettingsOpen(true)}
                         />
                     </motion.div>
                 )}
@@ -278,10 +289,12 @@ const App: React.FC = () => {
                             globalAlignment={editorGlobalAlignment}
                             fontFamily={editorFontFamily}
                             onClose={handleExitPresent}
+                            initialIndices={startIndices}
                         />
                     </motion.div>
                 )}
             </AnimatePresence>
+            <Settings isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
         </div>
     );
 };

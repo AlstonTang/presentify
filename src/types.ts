@@ -16,4 +16,12 @@ export interface SlideContent {
     background?: string;
     subSlides?: SlideContent[];
     alignment?: 'center' | 'left';
+    sourceLineRange?: [number, number]; // [startLine, endLine] 0-indexed
+}
+
+export interface UserSettings {
+    defaultTheme: string;
+    defaultFontFamily: string;
+    defaultAlignment: 'center' | 'left';
+    jumpToCurrentSlide: boolean;
 }

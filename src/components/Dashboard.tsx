@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Presentation as PresentationIcon, Trash2, Clock, Play, Search, FolderOpen, Zap } from 'lucide-react';
+import { Plus, Presentation as PresentationIcon, Trash2, Clock, Play, Search, FolderOpen, Zap, Settings as SettingsIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Presentation } from '../types';
 import { storage } from '../utils/storage';
@@ -8,9 +8,10 @@ interface DashboardProps {
     onSelect: (id: string) => void;
     onCreate: () => void;
     onPlay: (id: string) => void;
+    onSettings: () => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ onSelect, onCreate, onPlay }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ onSelect, onCreate, onPlay, onSettings }) => {
     const [presentations, setPresentations] = React.useState<Presentation[]>([]);
     const [searchQuery, setSearchQuery] = React.useState('');
     const [deletingId, setDeletingId] = React.useState<string | null>(null);
@@ -81,6 +82,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelect, onCreate, onPlay
                                 className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 focus:ring-2 focus:ring-violet-500/50 outline-none transition-all placeholder:text-text-dim"
                             />
                         </div>
+                        <button
+                            onClick={onSettings}
+                            className="w-12 h-12 flex items-center justify-center bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-text-dim hover:text-white transition-all"
+                            title="Settings"
+                        >
+                            <SettingsIcon size={20} />
+                        </button>
                         <button onClick={onCreate} className="btn-primary whitespace-nowrap">
                             <Plus size={20} />
                             <span>New Slide Deck</span>

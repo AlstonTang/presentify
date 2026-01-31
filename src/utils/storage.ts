@@ -1,4 +1,4 @@
-import type { Presentation } from '../types';
+import type { Presentation, UserSettings } from '../types';
 
 const STORAGE_KEY = 'presentify_decks';
 
@@ -35,5 +35,25 @@ export const storage = {
         const all = this.getPresentations().filter(p => p.id !== id);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
         window.dispatchEvent(new Event('storage'));
+    },
+
+    getSettings(): UserSettings {
+        const data = localStorage.getItem('presentify_settings');
+        const defaults: UserSettings = {
+            defaultTheme: 'presentify-dark',
+            defaultFontFamily: 'Outfit',
+            defaultAlignment: 'center',
+            jumpToCurrentSlide: true
+        };
+        try {
+            return data ? { ...defaults, ...JSON.parse(data) } : defaults;
+        } catch (e) {
+            return defaults;
+        }
+    },
+
+    saveSettings(settings: UserSettings): void {
+        localStorage.setItem('presentify_settings', JSON.stringify(settings));
     }
 };
+

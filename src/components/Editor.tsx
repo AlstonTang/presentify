@@ -1,9 +1,38 @@
 import React from 'react';
-import { ArrowLeft, Save, Sparkles, Eye, Layout, Check, AlignLeft, AlignCenter, Copy, Type, Sidebar as SidebarIcon, Download, FileText, Presentation as PresentationIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+    ArrowLeft,
+    Save,
+    Sparkles,
+    Eye,
+    Layout,
+    Check,
+    AlignLeft,
+    AlignCenter,
+    Copy,
+    Type,
+    Sidebar as SidebarIcon,
+    Download,
+    FileText,
+    Presentation as PresentationIcon,
+    ChevronLeft,
+    ChevronRight,
+    ChevronDown,
+    MoreVertical,
+    Monitor,
+    Maximize2,
+    Image as ImageIcon,
+    Table,
+    Code,
+    Share2,
+    Clock,
+    User,
+    Play
+} from 'lucide-react';
 import type { Presentation } from '../types';
 import { ThemeSelector } from './ThemeSelector';
 import { motion, AnimatePresence } from 'framer-motion';
 import { parseMarkdownToSlides } from '../utils/markdownParser';
+import { storage } from '../utils/storage';
 import pptxgen from 'pptxgenjs';
 import { getTheme } from '../utils/themes';
 
@@ -11,7 +40,7 @@ interface EditorProps {
     presentation: Presentation;
     onSave: (presentation: Presentation) => void;
     onBack: () => void;
-    onPresent: () => void;
+    onPresent: (indices?: [number, number]) => void;
 }
 
 export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, onPresent }) => {
@@ -26,6 +55,9 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
 
     const [showExportMenu, setShowExportMenu] = React.useState(false);
     const [currentPreviewSlide, setCurrentPreviewSlide] = React.useState(0);
+    const [lastInteraction, setLastInteraction] = React.useState<'cursor' | 'preview'>('cursor');
+    const settings = React.useMemo(() => storage.getSettings(), []);
+
 
     const textareaRef = React.useRef<HTMLTextAreaElement>(null);
     const gutterRef = React.useRef<HTMLDivElement>(null);
@@ -57,6 +89,44 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
         });
         return flat;
     }, [markdown]);
+
+    // Map flat preview slide index to [H, V] indices for Reveal
+    const getIndicesForPreview = (flatIdx: number): [number, number] => {
+        const parsed = parseMarkdownToSlides(markdown);
+        let count = 0;
+        for (let h = 0; h < parsed.length; h++) {
+            const slide = parsed[h];
+            if (slide.type === 'vertical' && slide.subSlides) {
+                for (let v = 0; v < slide.subSlides.length; v++) {
+                    if (count === flatIdx) return [h, v];
+                    count++;
+                }
+            } else {
+                if (count === flatIdx) return [h, 0];
+                count++;
+            }
+        }
+        return [0, 0];
+    };
+
+    const findSlideAtLine = (line: number): [number, number] => {
+        const parsed = parseMarkdownToSlides(markdown);
+        for (let h = 0; h < parsed.length; h++) {
+            const slide = parsed[h];
+            if (slide.type === 'vertical' && slide.subSlides) {
+                for (let v = 0; v < slide.subSlides.length; v++) {
+                    const sub = slide.subSlides[v];
+                    if (sub.sourceLineRange && line >= sub.sourceLineRange[0] && line <= sub.sourceLineRange[1]) {
+                        return [h, v];
+                    }
+                }
+            } else if (slide.sourceLineRange && line >= slide.sourceLineRange[0] && line <= slide.sourceLineRange[1]) {
+                return [h, 0];
+            }
+        }
+        return [0, 0];
+    };
+
 
     const handleScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
         if (gutterRef.current) {
@@ -239,7 +309,17 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
                             onClick={() => {
                                 // Save current state before presenting
                                 onSave({ ...presentation, title, markdown, theme, globalAlignment, fontFamily });
-                                onPresent();
+
+                                if (settings.jumpToCurrentSlide) {
+                                    if (lastInteraction === 'preview') {
+                                        onPresent(getIndicesForPreview(currentPreviewSlide));
+                                    } else {
+                                        const cursorLine = textareaRef.current ? (textareaRef.current.value.substr(0, textareaRef.current.selectionStart).split("\n").length - 1) : 0;
+                                        onPresent(findSlideAtLine(cursorLine));
+                                    }
+                                } else {
+                                    onPresent();
+                                }
                             }}
                             className="px-5 py-2.5 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-300 rounded-xl font-semibold flex items-center gap-2 transition-all"
                         >
@@ -330,6 +410,8 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
                         value={markdown}
                         onScroll={handleScroll}
                         onChange={(e) => setMarkdown(e.target.value)}
+                        onClick={() => setLastInteraction('cursor')}
+                        onKeyUp={() => setLastInteraction('cursor')}
                         className="w-full h-full bg-transparent pt-12 pb-12 px-6 text-[18px] resize-none focus:outline-none placeholder:text-text-dim/20 selection:bg-violet-500/30 overflow-y-auto whitespace-pre overflow-x-auto"
                         style={{ fontFamily: 'JetBrains Mono, monospace', lineHeight: '27px' }}
                         placeholder="Write your content here!"
@@ -408,7 +490,10 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
                                         return (
                                             <button
                                                 key={idx}
-                                                onClick={() => setCurrentPreviewSlide(idx)}
+                                                onClick={() => {
+                                                    setCurrentPreviewSlide(idx);
+                                                    setLastInteraction('preview');
+                                                }}
                                                 className={`shrink-0 w-16 h-10 rounded-lg border overflow-hidden transition-all ${idx === currentPreviewSlide
                                                     ? 'border-violet-500 ring-2 ring-violet-500/30'
                                                     : 'border-white/10 hover:border-white/30'

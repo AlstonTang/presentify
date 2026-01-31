@@ -18,9 +18,17 @@ interface PresentationViewerProps {
     globalAlignment?: 'center' | 'left';
     fontFamily?: string;
     onClose: () => void;
+    initialIndices?: [number, number];
 }
 
-export const PresentationViewer: React.FC<PresentationViewerProps> = ({ markdown, theme, globalAlignment = 'center', fontFamily = 'Outfit', onClose }) => {
+export const PresentationViewer: React.FC<PresentationViewerProps> = ({
+    markdown,
+    theme,
+    globalAlignment = 'center',
+    fontFamily = 'Outfit',
+    onClose,
+    initialIndices
+}) => {
     const deckRef = React.useRef<HTMLDivElement>(null);
     const slides = React.useMemo(() => parseMarkdownToSlides(markdown), [markdown]);
 
@@ -157,8 +165,21 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({ markdown
                             const div = document.createElement('div');
                             div.className = 'mermaid';
                             div.setAttribute('data-rendered', 'false');
-                            div.textContent = block.textContent || '';
-                            div.style.textAlign = 'center';
+
+                            // Check for size directive: %% size: 50%
+                            let content = block.textContent || '';
+                            const sizeMatch = content.match(/^\s*%% ?size:\s*([^%\n]+%?)/m);
+                            if (sizeMatch) {
+                                div.style.width = sizeMatch[1];
+                                div.style.maxWidth = '100%';
+                                div.style.margin = '0 auto';
+                                // Remove the directive line so Mermaid doesn't render it
+                                content = content.replace(/^\s*%% ?size:\s*[^%\n]+%?(\r\n|\n|\r)/, '');
+                            } else {
+                                div.style.textAlign = 'center';
+                            }
+
+                            div.textContent = content;
                             pre.replaceWith(div);
                         }
                     });
@@ -221,6 +242,9 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({ markdown
             });
 
             deck.initialize().then(() => {
+                if (initialIndices) {
+                    deck.slide(initialIndices[0], initialIndices[1]);
+                }
                 deck.layout();
             });
         }
