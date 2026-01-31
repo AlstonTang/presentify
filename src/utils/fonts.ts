@@ -1,0 +1,1 @@
+export const fonts: string[] = ["Arial", "Inter", "Jetbrains Mono", "Outer", "Playfair Display"];

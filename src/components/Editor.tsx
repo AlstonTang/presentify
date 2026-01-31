@@ -2,7 +2,6 @@ import React from 'react';
 import {
     ArrowLeft,
     Save,
-    Sparkles,
     Eye,
     Layout,
     Check,
@@ -16,22 +15,12 @@ import {
     Presentation as PresentationIcon,
     ChevronLeft,
     ChevronRight,
-    ChevronDown,
-    MoreVertical,
-    Monitor,
-    Maximize2,
-    Image as ImageIcon,
-    Table,
-    Code,
-    Share2,
-    Clock,
-    User,
-    Play
 } from 'lucide-react';
 import type { Presentation } from '../types';
 import { ThemeSelector } from './ThemeSelector';
 import { motion, AnimatePresence } from 'framer-motion';
 import { parseMarkdownToSlides } from '../utils/markdownParser';
+import { fonts } from '../utils/fonts';
 import { storage } from '../utils/storage';
 import pptxgen from 'pptxgenjs';
 import { getTheme } from '../utils/themes';
@@ -139,8 +128,6 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
         setIsSaved(true);
         setTimeout(() => setIsSaved(false), 2000);
     };
-
-
 
     const exportToPDF = () => {
         // Open presentation in new window and trigger print
@@ -275,10 +262,9 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
                             onChange={(e) => setFontFamily(e.target.value)}
                             className="bg-transparent text-sm font-semibold focus:outline-none cursor-pointer"
                         >
-                            <option value="Outfit" className="bg-slate-900">Outfit</option>
-                            <option value="Inter" className="bg-slate-900">Inter</option>
-                            <option value="JetBrains Mono" className="bg-slate-900">JetBrains Mono</option>
-                            <option value="Playfair Display" className="bg-slate-900">Playfair</option>
+							{fonts.map((font) => (
+								<option className="bg-slate-900">{font}</option>
+							))}
                         </select>
                     </div>
 
@@ -530,45 +516,33 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
 
                             <div className="space-y-6 text-sm">
                                 <section>
-                                    <h5 className="font-semibold text-text-muted mb-2">Slide Separation</h5>
+                                    <h4 className="font-semibold text-text-muted mb-2">Slide Separation</h4>
                                     <div className="space-y-2">
                                         <CodeSnippet code="---" label="Horizontal slide" />
                                         <CodeSnippet code="--" label="Vertical sub-slide" />
                                         <div className="p-2 border border-violet-500/20 bg-violet-500/5 rounded-lg">
                                             <p className="text-[10px] uppercase font-bold text-violet-400 mb-1">Implicit</p>
-                                            <p className="text-text-dim text-xs">Slides split at # and ## headers.</p>
+                                            <p className="text-text-dim text-xs">Slides split at #, ##, and ### headers.</p>
                                         </div>
                                     </div>
                                 </section>
 
                                 <section>
-                                    <h5 className="font-semibold text-text-muted mb-2">Alignment</h5>
+                                    <h4 className="font-semibold text-text-muted mb-2">Auto-Split</h4>
+                                    <p className="text-text-dim text-xs leading-relaxed">Very long slides are automatically split into vertical sub-slides to prevent cutoff.</p>
+                                </section>
+
+                                <section>
+                                    <h4 className="font-semibold text-text-muted mb-2">Alignment</h4>
                                     <div className="space-y-2">
                                         <CodeSnippet code="::left" label="Slide-level left-align" />
                                     </div>
                                 </section>
 
                                 <section>
-                                    <h5 className="font-semibold text-text-muted mb-2">Speaker Notes</h5>
+                                    <h4 className="font-semibold text-text-muted mb-2">Speaker Notes</h4>
                                     <CodeSnippet code="Note:" label="Hidden from audience" />
                                 </section>
-
-                                <section>
-                                    <h5 className="font-semibold text-text-muted mb-2">Auto-Split</h5>
-                                    <p className="text-text-dim text-xs leading-relaxed">Very long slides (&gt;20 lines) are automatically split into vertical sub-slides to prevent cutoff.</p>
-                                </section>
-                            </div>
-
-                            <div className="mt-auto pt-6 border-t border-white/5">
-                                <div className="bg-grad-main/10 border border-violet-500/20 rounded-2xl p-4">
-                                    <div className="flex items-center gap-2 text-violet-400 font-bold text-xs mb-2 uppercase tracking-wide">
-                                        <Sparkles size={14} />
-                                        Pro Tip
-                                    </div>
-                                    <p className="text-xs text-text-muted leading-relaxed">
-                                        Use '---' to split slides, and 'Note:' for speaker notes.
-                                    </p>
-                                </div>
                             </div>
                         </motion.div>
                     )}

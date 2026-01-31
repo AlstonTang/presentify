@@ -136,7 +136,6 @@ export const themes: Record<string, ThemeConfig> = {
                 pointer-events: none;
             }
             .reveal h1 {
-                font-family: 'JetBrains Mono', monospace !important;
                 border-left: 6px solid #10b981;
                 padding-left: 24px !important;
             }

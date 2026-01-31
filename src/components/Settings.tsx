@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import type { UserSettings } from '../types';
 import { storage } from '../utils/storage';
 import { themes } from '../utils/themes';
+import { fonts } from '../utils/fonts'
 
 interface SettingsProps {
     isOpen: boolean;
@@ -35,7 +36,7 @@ export const Settings: React.FC<SettingsProps> = ({ isOpen, onClose }) => {
                 initial={{ opacity: 0, scale: 0.9, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                className="relative w-full max-w-2xl bg-[#0a0e1a] border border-white/10 rounded-3xl shadow-2xl overflow-hidden"
+                className="relative w-full max-w-2xl bg-[#0a0e1a] text-white border border-white/10 rounded-3xl shadow-2xl overflow-hidden"
             >
                 <div className="p-8">
                     <div className="flex items-center justify-between mb-8">
@@ -74,10 +75,9 @@ export const Settings: React.FC<SettingsProps> = ({ isOpen, onClose }) => {
                                         onChange={(e) => setSettings({ ...settings, defaultFontFamily: e.target.value })}
                                         className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-violet-500/50 transition-all font-medium text-sm"
                                     >
-                                        <option value="Outfit" className="bg-slate-900">Outfit</option>
-                                        <option value="Inter" className="bg-slate-900">Inter</option>
-                                        <option value="JetBrains Mono" className="bg-slate-900">JetBrains Mono</option>
-                                        <option value="Playfair Display" className="bg-slate-900">Playfair</option>
+                                        {fonts.map((font) => (
+											<option className="bg-slate-900">{font}</option>
+										))}
                                     </select>
                                 </div>
                             </div>
