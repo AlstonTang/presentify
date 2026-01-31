@@ -5,7 +5,7 @@ import { PresentationViewer } from './components/PresentationViewer';
 import type { Presentation } from './types';
 import { storage } from './utils/storage';
 import { v4 as uuidv4 } from 'uuid';
-import { enhanceMarkdown } from './utils/aiEnhancer';
+
 import { motion, AnimatePresence } from 'framer-motion';
 
 type View = 'dashboard' | 'editor' | 'present';
@@ -216,9 +216,7 @@ const App: React.FC = () => {
         }
     };
 
-    const handleAiEnhance = async (markdown: string, onProgress?: (status: string) => void): Promise<string> => {
-        return await enhanceMarkdown(markdown, onProgress);
-    };
+
 
     return (
         <div className="min-h-screen bg-[#050811]">
@@ -261,7 +259,7 @@ const App: React.FC = () => {
                             onSave={handleSave}
                             onBack={handleBack}
                             onPresent={handlePresent}
-                            onAiEnhance={handleAiEnhance}
+
                         />
                     </motion.div>
                 )}

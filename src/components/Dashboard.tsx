@@ -25,8 +25,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelect, onCreate, onPlay
     const filteredPresentations = presentations.filter(p =>
         p.title.toLowerCase().includes(searchQuery.toLowerCase())
     ).sort((p, q) =>
-		q.updatedAt - p.updatedAt
-	);
+        q.updatedAt - p.updatedAt
+    );
 
     const handleDeleteClick = (e: React.MouseEvent, id: string) => {
         e.stopPropagation();
@@ -62,7 +62,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelect, onCreate, onPlay
                             </h1>
                         </div>
                         <p className="text-text-muted text-lg max-w-md">
-                            Create cinematic presentations from your notes in seconds. Powered by Local AI.
+                            Create cinematic presentations from your notes in seconds.
                         </p>
                     </motion.div>
 

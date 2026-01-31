@@ -6,6 +6,7 @@ import Math from 'reveal.js/plugin/math/math.esm.js';
 import { parseMarkdownToSlides } from '../utils/markdownParser';
 import { X } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { getTheme } from '../utils/themes';
 
 // Import reveal.js styles
 import 'reveal.js/dist/reveal.css';
@@ -31,11 +32,9 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({ markdown
         const existingStyle = document.getElementById(customStyleId);
         if (existingStyle) existingStyle.remove();
 
-        // 1. Determine base Reveal theme
-        let baseTheme = theme;
-        if (['presentify-dark', 'neon-nebula', 'cyber-midnight', 'minimal-glass'].includes(theme)) {
-            baseTheme = theme === 'minimal-glass' ? 'white' : 'black';
-        }
+        // 1. Determine base Reveal theme from config
+        const themeConfig = getTheme(theme);
+        const baseTheme = themeConfig.baseTheme || 'black';
 
         const link = document.createElement('link');
         link.rel = 'stylesheet';
@@ -110,216 +109,33 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({ markdown
             .reveal .align-left ul, .reveal .align-left ol { display: block; margin-left: 1em; }
         `;
 
-        // Theme-specific immersive backgrounds
-        if (theme === 'presentify-dark') {
-            customCss += `
-                .reveal-viewport { 
-                    background: #050010 !important;
-                    overflow: visible !important;
-                }
-                .presentify-aurora {
-                    position: fixed;
-                    inset: -100px;
-                    width: calc(100% + 200px);
-                    height: calc(100% + 200px);
-                    background: 
-                        radial-gradient(ellipse 80% 60% at 20% 30%, rgba(99, 102, 241, 0.5) 0%, transparent 60%),
-                        radial-gradient(ellipse 70% 70% at 80% 70%, rgba(168, 85, 247, 0.45) 0%, transparent 60%),
-                        radial-gradient(ellipse 60% 50% at 60% 20%, rgba(236, 72, 153, 0.4) 0%, transparent 50%);
-                    filter: blur(60px);
-                    animation: orbit 50s linear infinite;
-                    z-index: 0;
-                    pointer-events: none;
-                }
-                .reveal { position: relative; z-index: 1; }
-                .reveal h1, .reveal h2 { 
-                    background: linear-gradient(135deg, #a5b4fc 0%, #c4b5fd 50%, #f9a8d4 100%);
+        // Theme-specific immersive backgrounds - Using centralized ThemeConfig
+
+        customCss += `
+            .reveal-viewport { 
+                background: ${themeConfig.revealBg} !important;
+                /* Ensure full viewport usage */
+                ${themeConfig.id !== 'black' ? 'overflow: visible !important;' : ''}
+            }
+            
+            .reveal { position: relative; z-index: 1; }
+            
+            .reveal h1, .reveal h2 { 
+                 ${themeConfig.revealHeadingColor ? `color: ${themeConfig.revealHeadingColor} !important;` : ''}
+                 ${themeConfig.revealHeadingGradient ? `
+                    background: ${themeConfig.revealHeadingGradient};
                     -webkit-background-clip: text;
                     -webkit-text-fill-color: transparent;
                     background-clip: text;
-                    font-size: 3.2em !important;
-                    filter: drop-shadow(0 4px 20px rgba(139, 92, 246, 0.3));
-                }
-                .reveal h3 { color: #e0e7ff !important; }
-                .reveal p, .reveal li { color: #c7d2fe !important; }
-            `;
-        } else if (theme === 'neon-nebula') {
-            customCss += `
-                .reveal-viewport { 
-                    background: linear-gradient(135deg, #0c0015 0%, #1a0a2e 50%, #0f051d 100%) !important;
-                    overflow: visible !important;
-                }
-                .theme-bg-effect {
-                    position: fixed;
-                    inset: 0;
-                    width: 100vw;
-                    height: 100vh;
-                    background: radial-gradient(circle at 50% 50%, rgba(219, 39, 119, 0.25) 0%, transparent 60%);
-                    animation: pulse-ring 8s ease-in-out infinite;
-                    z-index: 0;
-                    pointer-events: none;
-                }
-                .theme-bg-effect-2 {
-                    position: fixed;
-                    inset: 0;
-                    background: radial-gradient(circle at 30% 70%, rgba(124, 58, 237, 0.3) 0%, transparent 50%);
-                    z-index: 0;
-                    pointer-events: none;
-                }
-                .reveal { position: relative; z-index: 1; }
-                .reveal h1 { 
-                    color: #fff !important;
-                    text-shadow: 0 0 40px rgba(219, 39, 119, 0.8), 0 0 80px rgba(124, 58, 237, 0.5) !important;
-                    font-size: 4em !important;
-                }
-                .reveal h2, .reveal h3 { color: #f9a8d4 !important; }
-                .reveal p, .reveal li { color: #e9d5ff !important; }
-            `;
-        } else if (theme === 'cyber-midnight') {
-            customCss += `
-                .reveal-viewport { 
-                    background: #030712 !important;
-                    overflow: visible !important;
-                }
-                .theme-bg-effect {
-                    position: fixed;
-                    inset: 0;
-                    background-image: 
-                        linear-gradient(rgba(16, 185, 129, 0.05) 1px, transparent 1px),
-                        linear-gradient(90deg, rgba(16, 185, 129, 0.05) 1px, transparent 1px);
-                    background-size: 60px 60px;
-                    z-index: 0;
-                    pointer-events: none;
-                }
-                .theme-bg-effect-2 {
-                    position: fixed;
-                    bottom: 0;
-                    left: 0;
-                    right: 0;
-                    height: 50%;
-                    background: linear-gradient(to top, rgba(16, 185, 129, 0.1) 0%, transparent 100%);
-                    z-index: 0;
-                    pointer-events: none;
-                }
-                .reveal { position: relative; z-index: 1; }
-                .reveal h1 { 
-                    color: #34d399 !important;
-                    font-family: 'JetBrains Mono', monospace !important;
-                    text-shadow: 0 0 30px rgba(16, 185, 129, 0.5) !important;
-                    font-size: 3.5em !important;
-                    border-left: 6px solid #10b981;
-                    padding-left: 24px !important;
-                }
-                .reveal h2, .reveal h3 { color: #6ee7b7 !important; }
-                .reveal p, .reveal li { color: #a7f3d0 !important; }
-            `;
-        } else if (theme === 'blood') {
-            customCss += `
-                .reveal-viewport { 
-                    background: radial-gradient(ellipse at center, #1a0000 0%, #050000 100%) !important;
-                    overflow: visible !important;
-                }
-                .theme-bg-effect {
-                    position: fixed;
-                    inset: -50px;
-                    width: calc(100% + 100px);
-                    height: calc(100% + 100px);
-                    background: radial-gradient(ellipse 80% 60% at 50% 30%, rgba(185, 28, 28, 0.5) 0%, transparent 60%);
-                    filter: blur(40px);
-                    animation: pulse-ring 10s ease-in-out infinite;
-                    z-index: 0;
-                    pointer-events: none;
-                }
-                .reveal { position: relative; z-index: 1; }
-                .reveal h1, .reveal h2 { 
-                    color: #fca5a5 !important;
-                    text-shadow: 0 0 40px rgba(220, 38, 38, 0.6) !important;
-                    font-size: 3.5em !important;
-                }
-                .reveal h3 { color: #f87171 !important; }
-                .reveal p, .reveal li { color: #fecaca !important; }
-            `;
-        } else if (theme === 'night') {
-            customCss += `
-                .reveal-viewport { 
-                    background: linear-gradient(180deg, #020617 0%, #0f172a 100%) !important;
-                    overflow: visible !important;
-                }
-                .theme-bg-effect {
-                    position: fixed;
-                    inset: -100px;
-                    width: calc(100% + 200px);
-                    height: calc(100% + 200px);
-                    background: 
-                        radial-gradient(ellipse 70% 50% at 15% 20%, rgba(30, 58, 138, 0.5) 0%, transparent 50%),
-                        radial-gradient(ellipse 60% 60% at 85% 80%, rgba(23, 37, 84, 0.6) 0%, transparent 50%);
-                    filter: blur(50px);
-                    animation: orbit 80s linear infinite;
-                    z-index: 0;
-                    pointer-events: none;
-                }
-                .reveal { position: relative; z-index: 1; }
-                .reveal h1 { 
-                    color: #f8fafc !important;
-                    text-shadow: 0 8px 30px rgba(0,0,0,0.5) !important;
-                    filter: drop-shadow(0 0 20px rgba(56, 189, 248, 0.15));
-                }
-                .reveal h2, .reveal h3 { color: #e2e8f0 !important; }
-                .reveal p, .reveal li { color: #cbd5e1 !important; }
-            `;
-        } else if (theme === 'moon') {
-            customCss += `
-                .reveal-viewport { 
-                    background: radial-gradient(ellipse at 30% 20%, #1e293b 0%, #0f172a 100%) !important;
-                    overflow: visible !important;
-                }
-                .theme-bg-effect {
-                    position: fixed;
-                    inset: 0;
-                    background: radial-gradient(circle at 70% 30%, rgba(148, 163, 184, 0.2) 0%, transparent 50%);
-                    z-index: 0;
-                    pointer-events: none;
-                }
-                .reveal { position: relative; z-index: 1; }
-                .reveal h1, .reveal h2 { color: #f1f5f9 !important; }
-                .reveal h3 { color: #cbd5e1 !important; }
-                .reveal p, .reveal li { color: #94a3b8 !important; }
-            `;
-        } else if (theme === 'minimal-glass' || theme === 'white') {
-            customCss += `
-                .reveal-viewport { 
-                    background: linear-gradient(135deg, #fafafa 0%, #f1f5f9 50%, #e2e8f0 100%) !important;
-                    overflow: visible !important;
-                }
-                .theme-bg-effect {
-                    position: fixed;
-                    inset: 0;
-                    background: 
-                        radial-gradient(circle at 10% 10%, rgba(99, 102, 241, 0.08) 0%, transparent 40%),
-                        radial-gradient(circle at 90% 90%, rgba(168, 85, 247, 0.08) 0%, transparent 40%);
-                    z-index: 0;
-                    pointer-events: none;
-                }
-                .reveal { position: relative; z-index: 1; }
-                .reveal h1 { 
-                    color: #0f172a !important;
-                    font-size: 4em !important;
-                    letter-spacing: -0.03em;
-                }
-                .reveal h2, .reveal h3 { color: #1e293b !important; }
-                .reveal p, .reveal li { color: #334155 !important; }
-            `;
-        } else if (theme === 'black') {
-            customCss += `
-                .reveal-viewport { 
-                    background: radial-gradient(ellipse at center, #111 0%, #000 100%) !important;
-                }
-                .reveal { position: relative; z-index: 1; }
-                .reveal h1, .reveal h2 { color: #fff !important; }
-                .reveal h3 { color: #e5e5e5 !important; }
-                .reveal p, .reveal li { color: #d4d4d4 !important; }
-            `;
-        }
+                 ` : ''}
+                 ${themeConfig.revealTextShadow ? `text-shadow: ${themeConfig.revealTextShadow} !important;` : ''}
+            }
+            
+            ${themeConfig.revealTextColor ? `.reveal h3, .reveal p, .reveal li { color: ${themeConfig.revealTextColor} !important; }` : ''}
+
+            ${themeConfig.customCss || ''}
+        `;
+
 
         style.appendChild(document.createTextNode(customCss));
         document.head.appendChild(style);
@@ -381,19 +197,12 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({ markdown
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[100] bg-black"
         >
-            {/* Theme background effects - rendered as real DOM elements */}
-            {theme === 'presentify-dark' && (
-                <div className="presentify-aurora" />
+            {/* Theme background effects - rendered as real DOM elements */}{getTheme(theme).bgEffectClass && (
+                <div className={getTheme(theme).bgEffectClass} />
             )}
-            {(theme === 'neon-nebula' || theme === 'cyber-midnight' || theme === 'blood' ||
-                theme === 'night' || theme === 'moon' || theme === 'minimal-glass' || theme === 'white') && (
-                    <>
-                        <div className="theme-bg-effect" />
-                        {(theme === 'neon-nebula' || theme === 'cyber-midnight') && (
-                            <div className="theme-bg-effect-2" />
-                        )}
-                    </>
-                )}
+            {getTheme(theme).bgEffectClass2 && (
+                <div className={getTheme(theme).bgEffectClass2} />
+            )}
 
             <button
                 onClick={onClose}

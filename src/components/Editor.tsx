@@ -1,20 +1,20 @@
 import React from 'react';
-import { ArrowLeft, Save, Sparkles, Wand2, Eye, Layout, Check, AlignLeft, AlignCenter, Copy, Type, Sidebar as SidebarIcon, Download, FileText, Presentation as PresentationIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Save, Sparkles, Eye, Layout, Check, AlignLeft, AlignCenter, Copy, Type, Sidebar as SidebarIcon, Download, FileText, Presentation as PresentationIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Presentation } from '../types';
 import { ThemeSelector } from './ThemeSelector';
 import { motion, AnimatePresence } from 'framer-motion';
 import { parseMarkdownToSlides } from '../utils/markdownParser';
 import pptxgen from 'pptxgenjs';
+import { getTheme } from '../utils/themes';
 
 interface EditorProps {
     presentation: Presentation;
     onSave: (presentation: Presentation) => void;
     onBack: () => void;
     onPresent: () => void;
-    onAiEnhance: (markdown: string, onProgress?: (status: string) => void) => Promise<string>;
 }
 
-export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, onPresent, onAiEnhance }) => {
+export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, onPresent }) => {
     const [markdown, setMarkdown] = React.useState(presentation.markdown);
     const [title, setTitle] = React.useState(presentation.title);
     const [theme, setTheme] = React.useState(presentation.theme || 'black');
@@ -22,10 +22,8 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
     const [fontFamily, setFontFamily] = React.useState(presentation.fontFamily || 'Outfit');
     const [showGuide, setShowGuide] = React.useState(false);
     const [showPreview, setShowPreview] = React.useState(true);
-    const [isEnhancing, setIsEnhancing] = React.useState(false);
     const [isSaved, setIsSaved] = React.useState(false);
-    const [aiStatus, setAiStatus] = React.useState('');
-    const [aiError, setAiError] = React.useState<string | null>(null);
+
     const [showExportMenu, setShowExportMenu] = React.useState(false);
     const [currentPreviewSlide, setCurrentPreviewSlide] = React.useState(0);
 
@@ -72,20 +70,7 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
         setTimeout(() => setIsSaved(false), 2000);
     };
 
-    const handleAiEnhance = async () => {
-        setIsEnhancing(true);
-        setAiError(null);
-        try {
-            const enhancedMarkdown = await onAiEnhance(markdown, setAiStatus);
-            setMarkdown(enhancedMarkdown);
-        } catch (error: any) {
-            console.error('AI Enhancement failed:', error);
-            setAiError(error.message || 'AI Enhancement failed. Check connection or hardware support.');
-        } finally {
-            setIsEnhancing(false);
-            setAiStatus('');
-        }
-    };
+
 
     const exportToPDF = () => {
         // Open presentation in new window and trigger print
@@ -173,18 +158,18 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
         <div className="flex flex-col h-screen bg-[#050811] text-white">
             {/* Header / Toolbar */}
             <header className="h-16 px-6 border-b border-white/5 bg-slate-950/50 backdrop-blur-xl flex items-center justify-between shrink-0 relative z-20">
-                <div className="flex items-center gap-4 flex-1">
+                <div className="flex items-center gap-4 flex-1 min-w-0">
                     <button
                         onClick={onBack}
-                        className="w-10 h-10 flex items-center justify-center hover:bg-white/5 rounded-xl transition-colors border border-transparent hover:border-white/10"
+                        className="w-10 h-10 flex-none flex items-center justify-center hover:bg-white/5 rounded-xl transition-colors border border-transparent hover:border-white/10"
                     >
                         <ArrowLeft size={20} />
                     </button>
-                    <div className="flex flex-col">
+                    <div className="flex flex-col min-w-0 flex-1">
                         <input
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
-                            className="bg-transparent text-lg font-bold focus:outline-none border-b border-transparent focus:border-violet-500/50 px-1 py-0.5 transition-all w-64 md:w-96"
+                            className="bg-transparent text-lg font-bold focus:outline-none border-b border-transparent focus:border-violet-500/50 px-1 py-0.5 transition-all w-full truncate"
                             placeholder="Presentation Title"
                         />
                     </div>
@@ -248,35 +233,7 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
                     <div className="w-px h-6 bg-white/10 mx-2" />
 
                     <div className="flex gap-2">
-                        <button
-                            onClick={handleAiEnhance}
-                            disabled={isEnhancing}
-                            className="relative group overflow-hidden px-5 py-2.5 bg-grad-main rounded-xl font-bold flex items-center gap-2 hover:shadow-[0_0_20px_rgba(139,92,246,0.4)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <AnimatePresence mode="wait">
-                                {isEnhancing ? (
-                                    <motion.div
-                                        key="enhancing"
-                                        initial={{ opacity: 0, rotate: 0 }}
-                                        animate={{ opacity: 1, rotate: 360 }}
-                                        exit={{ opacity: 0 }}
-                                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                                    >
-                                        <Wand2 size={18} />
-                                    </motion.div>
-                                ) : (
-                                    <motion.div
-                                        key="sparkle"
-                                        initial={{ opacity: 0, scale: 0.8 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        exit={{ opacity: 0, scale: 0.8 }}
-                                    >
-                                        <Sparkles size={18} className="fill-white" />
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                            <span>{isEnhancing ? 'Brewing...' : 'AI Magic'}</span>
-                        </button>
+
 
                         <button
                             onClick={() => {
@@ -378,51 +335,7 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
                         placeholder="Write your content here!"
                     />
 
-                    {/* Overlay glow when AI is working */}
-                    <AnimatePresence>
-                        {isEnhancing && (
-                            <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                className="absolute inset-0 bg-violet-600/5 backdrop-blur-[2px] pointer-events-none flex items-center justify-center p-8"
-                            >
-                                <div className="flex flex-col items-center gap-4 text-center max-w-sm">
-                                    <div className="w-16 h-16 border-4 border-violet-500/20 border-t-violet-500 rounded-full animate-spin" />
-                                    <p className="text-violet-400 font-bold tracking-widest uppercase text-xs animate-pulse">
-                                        Synchronizing with Intelligence
-                                    </p>
-                                    {aiStatus && (
-                                        <p className="text-text-dim text-xs mt-2">{aiStatus}</p>
-                                    )}
-                                </div>
-                            </motion.div>
-                        )}
-                        {aiError && (
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.95 }}
-                                className="absolute top-8 left-1/2 -translate-x-1/2 bg-red-950/80 border border-red-500/50 p-4 rounded-2xl shadow-2xl backdrop-blur-xl max-w-md z-[60]"
-                            >
-                                <div className="flex flex-col gap-3">
-                                    <div className="flex items-center gap-2 text-red-400 font-bold text-sm">
-                                        <ArrowLeft size={16} className="rotate-90" />
-                                        Hardware / Driver Issue Detected
-                                    </div>
-                                    <p className="text-white/80 text-xs leading-relaxed whitespace-pre-wrap">
-                                        {aiError}
-                                    </p>
-                                    <button
-                                        onClick={() => setAiError(null)}
-                                        className="text-[10px] uppercase tracking-wider font-bold text-white/40 hover:text-white/80 transition-colors"
-                                    >
-                                        Dismiss
-                                    </button>
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+
                 </div>
 
                 {/* Live Preview Panel */}
@@ -461,34 +374,23 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
                             </div>
 
                             {/* Slide Preview */}
-                            <div className="flex-1 p-4 overflow-hidden">
+                            <div className="flex-1 p-4 overflow-hidden flex flex-col">
                                 <div
-                                    className={`w-full aspect-video rounded-xl border border-white/10 overflow-hidden flex items-center justify-center p-4 ${theme === 'presentify-dark' ? 'bg-gradient-to-br from-indigo-950/80 via-purple-950/60 to-pink-950/40' :
-                                        theme === 'neon-nebula' ? 'bg-gradient-to-br from-purple-950 via-fuchsia-950/80 to-pink-950/60' :
-                                            theme === 'cyber-midnight' ? 'bg-[#030712]' :
-                                                theme === 'blood' ? 'bg-gradient-to-br from-red-950/80 to-black' :
-                                                    theme === 'night' ? 'bg-gradient-to-b from-slate-950 to-blue-950/50' :
-                                                        theme === 'moon' ? 'bg-slate-900' :
-                                                            (theme === 'white' || theme === 'minimal-glass') ? 'bg-gradient-to-br from-gray-100 to-gray-200' :
-                                                                'bg-gradient-to-br from-slate-900 to-slate-950'
-                                        }`}
+                                    className={`w-full aspect-video rounded-xl border border-white/10 overflow-hidden flex flex-col p-6 ${getTheme(theme).previewBgClass}`}
                                 >
-                                    <div className={`w-full ${globalAlignment === 'left' ? 'text-left' : 'text-center'}`} style={{ fontFamily: `'${fontFamily}', sans-serif` }}>
-                                        {slides[currentPreviewSlide]?.content.split('\n').slice(0, 8).map((line, idx) => {
-                                            const isLightTheme = theme === 'white' || theme === 'minimal-glass';
-                                            const headingColor = isLightTheme ? 'text-slate-900' :
-                                                theme === 'presentify-dark' ? 'text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 via-purple-300 to-pink-300' :
-                                                    theme === 'neon-nebula' ? 'text-pink-300' :
-                                                        theme === 'cyber-midnight' ? 'text-emerald-400' :
-                                                            theme === 'blood' ? 'text-red-300' : 'text-white';
-                                            const textColor = isLightTheme ? 'text-slate-600' : 'text-white/70';
+                                    <div className={`w-full h-full overflow-y-auto ${globalAlignment === 'left' ? 'text-left' : 'text-center'}`} style={{ fontFamily: `'${fontFamily}', sans-serif` }}>
+                                        {slides[currentPreviewSlide]?.content.split('\n').map((line, idx) => {
+                                            const themeConfig = getTheme(theme);
+                                            const headingClass = themeConfig.headingGradient
+                                                ? `${themeConfig.headingGradient} ${themeConfig.headingColor}`
+                                                : themeConfig.headingColor;
 
-                                            if (line.startsWith('# ')) return <h1 key={idx} className={`text-lg font-bold ${headingColor} mb-2 truncate`}>{line.slice(2)}</h1>;
-                                            if (line.startsWith('## ')) return <h2 key={idx} className={`text-base font-semibold ${headingColor} opacity-90 mb-1.5 truncate`}>{line.slice(3)}</h2>;
-                                            if (line.startsWith('### ')) return <h3 key={idx} className={`text-sm font-medium ${textColor} mb-1 truncate`}>{line.slice(4)}</h3>;
-                                            if (line.startsWith('- ')) return <p key={idx} className={`text-xs ${textColor} mb-0.5 truncate`}>• {line.slice(2)}</p>;
-                                            if (line.includes('$')) return <p key={idx} className={`text-xs ${textColor} italic truncate`}>📐 Math</p>;
-                                            if (line.trim() && !line.startsWith('Note:')) return <p key={idx} className={`text-xs ${textColor} truncate`}>{line}</p>;
+                                            if (line.startsWith('# ')) return <h1 key={idx} className={`text-2xl font-bold ${headingClass} mb-4 break-words`}>{line.slice(2)}</h1>;
+                                            if (line.startsWith('## ')) return <h2 key={idx} className={`text-xl font-semibold ${headingClass} opacity-90 mb-3 break-words`}>{line.slice(3)}</h2>;
+                                            if (line.startsWith('### ')) return <h3 key={idx} className={`text-lg font-medium ${themeConfig.textColor} mb-2 break-words`}>{line.slice(4)}</h3>;
+                                            if (line.startsWith('- ')) return <p key={idx} className={`text-sm ${themeConfig.textColor} mb-1 pl-4 relative before:content-['•'] before:absolute before:left-0 before:text-white/40 break-words`}>{line.slice(2)}</p>;
+                                            if (line.includes('$')) return <p key={idx} className={`text-sm ${themeConfig.textColor} italic my-2 p-2 bg-white/5 rounded border border-white/5 text-center`}>📐 Math Expression</p>;
+                                            if (line.trim() && !line.startsWith('Note:')) return <p key={idx} className={`text-sm ${themeConfig.textColor} mb-1 leading-relaxed break-words`}>{line}</p>;
                                             return null;
                                         })}
                                     </div>
@@ -497,16 +399,12 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
 
 
                             {/* Slide Thumbnails */}
-                            <div className="p-4 border-t border-white/5 overflow-x-auto">
+                            <div className="p-4 border-t border-white/5 overflow-x-auto shrink-0">
                                 <div className="flex gap-2">
                                     {slides.map((slide, idx) => {
-                                        const isLightTheme = theme === 'white' || theme === 'minimal-glass';
-                                        const thumbBg =
-                                            theme === 'presentify-dark' ? 'bg-gradient-to-br from-indigo-950 to-purple-950' :
-                                                theme === 'neon-nebula' ? 'bg-gradient-to-br from-purple-950 to-pink-950' :
-                                                    theme === 'cyber-midnight' ? 'bg-[#030712]' :
-                                                        theme === 'blood' ? 'bg-red-950' :
-                                                            isLightTheme ? 'bg-gray-200' : 'bg-slate-900';
+                                        const themeConfig = getTheme(theme);
+                                        const isLightTheme = (themeConfig.baseTheme || 'black') === 'white';
+
                                         return (
                                             <button
                                                 key={idx}
@@ -516,7 +414,7 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
                                                     : 'border-white/10 hover:border-white/30'
                                                     } ${slide.isSubSlide ? 'opacity-60' : ''}`}
                                             >
-                                                <div className={`w-full h-full ${thumbBg} flex items-center justify-center p-1`}>
+                                                <div className={`w-full h-full ${themeConfig.thumbBgClass} flex items-center justify-center p-1`}>
                                                     <span className={`text-[8px] truncate ${isLightTheme ? 'text-slate-600' : 'text-white/40'}`}>
                                                         {slide.content.split('\n')[0]?.replace(/^#+\s*/, '').slice(0, 10) || `Slide ${idx + 1}`}
                                                     </span>
@@ -583,7 +481,7 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
                                         Pro Tip
                                     </div>
                                     <p className="text-xs text-text-muted leading-relaxed">
-                                        Use AI Magic to automatically structure messy meeting notes into slides.
+                                        Use '---' to split slides, and 'Note:' for speaker notes.
                                     </p>
                                 </div>
                             </div>
