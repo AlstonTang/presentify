@@ -7,7 +7,7 @@ function spaFallbackPlugin() {
 	return {
 		name: 'spa-fallback',
 		configureServer(server: any) {
-			server.middlewares.use((req: any, res: any, next: any) => {
+			server.middlewares.use((req: any, _: any, next: any) => {
 				try {
 					if (req.method !== 'GET') return next();
 					const accept = (req.headers && req.headers.accept) || '';
@@ -26,7 +26,7 @@ function spaFallbackPlugin() {
 		},
 		// For vite preview: similar catch-all middleware
 		configurePreviewServer(app: any) {
-			app.use((req: any, res: any, next: any) => {
+			app.use((req: any, _: any, next: any) => {
 				try {
 					if (req.method !== 'GET') return next();
 					const accept = (req.headers && req.headers.accept) || '';
