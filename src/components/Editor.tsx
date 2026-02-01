@@ -8,7 +8,6 @@ import {
     AlignLeft,
     AlignCenter,
     Copy,
-    Type,
     Sidebar as SidebarIcon,
     Download,
     FileText,
@@ -17,10 +16,10 @@ import {
     ChevronRight,
 } from 'lucide-react';
 import type { Presentation } from '../types';
+import { FontSelector } from './FontSelector';
 import { ThemeSelector } from './ThemeSelector';
 import { motion, AnimatePresence } from 'framer-motion';
 import { parseMarkdownToSlides } from '../utils/markdownParser';
-import { fonts } from '../utils/fonts';
 import { storage } from '../utils/storage';
 import pptxgen from 'pptxgenjs';
 import { getTheme } from '../utils/themes';
@@ -238,6 +237,11 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
                         <ThemeSelector currentTheme={theme} onThemeChange={setTheme} />
                     </div>
 
+                    <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-xl border border-white/10">
+                        <Layout size={16} className="text-text-dim" />
+                        <FontSelector currentFont={fontFamily} onFontChange={setFontFamily} />
+                    </div>
+
                     <div className="hidden lg:flex items-center gap-1 p-1 bg-white/5 rounded-xl border border-white/10">
                         <button
                             onClick={() => setGlobalAlignment('center')}
@@ -253,19 +257,6 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
                         >
                             <AlignLeft size={16} />
                         </button>
-                    </div>
-
-                    <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-xl border border-white/10">
-                        <Type size={16} className="text-text-dim" />
-                        <select
-                            value={fontFamily}
-                            onChange={(e) => setFontFamily(e.target.value)}
-                            className="bg-transparent text-sm font-semibold focus:outline-none cursor-pointer"
-                        >
-							{fonts.map((font) => (
-								<option className="bg-slate-900">{font}</option>
-							))}
-                        </select>
                     </div>
 
                     <div className="w-px h-6 bg-white/10 mx-2" />
@@ -289,7 +280,61 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
                     <div className="w-px h-6 bg-white/10 mx-2" />
 
                     <div className="flex gap-2">
+                        {/* Export dropdown */}
+                        <div className="relative">
+                            <button
+                                onClick={() => setShowExportMenu(!showExportMenu)}
+                                className="px-5 py-2.5 rounded-xl font-semibold flex items-center gap-2 transition-all border border-white/10 hover:bg-gray-500/30"
+                            >
+                                <Download size={18} />
+                                <span>Export</span>
+                            </button>
+                            <AnimatePresence>
+                                {showExportMenu && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: -10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -10 }}
+                                        className="absolute top-full right-0 mt-2 w-48 bg-slate-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50"
+                                    >
+                                        <button
+                                            onClick={exportToPDF}
+                                            className="w-full px-4 py-3 flex items-center gap-3 hover:bg-white/5 transition-colors text-left"
+                                        >
+                                            <FileText size={18} className="text-red-400" />
+                                            <div>
+                                                <div className="font-semibold text-sm">Export PDF (Beta)</div>
+                                                <div className="text-xs text-text-dim">Print-ready format</div>
+                                            </div>
+                                        </button>
+                                        <button
+                                            onClick={exportToPPTX}
+                                            className="w-full px-4 py-3 flex items-center gap-3 hover:bg-white/5 transition-colors text-left border-t border-white/5"
+                                        >
+                                            <PresentationIcon size={18} className="text-orange-400" />
+                                            <div>
+                                                <div className="font-semibold text-sm">Export PPTX (Beta)</div>
+                                                <div className="text-xs text-text-dim">PowerPoint format</div>
+                                            </div>
+                                        </button>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
 
+                        <button
+                            onClick={handleSave}
+                            disabled={!hasChanges && !isSaved}
+                            className={`px-5 py-2.5 rounded-xl font-semibold flex items-center gap-2 transition-all border ${isSaved
+                                ? 'bg-green-500/20 border-green-500/50 text-green-400'
+                                : hasChanges
+                                    ? 'bg-violet-500/20 border-violet-500/50 text-violet-300 hover:bg-violet-500/30'
+                                    : 'bg-white/5 border-white/10 text-text-dim cursor-not-allowed opacity-50'
+                                }`}
+                        >
+                            {isSaved ? <Check size={18} /> : <Save size={18} />}
+                            <span>{isSaved ? 'Saved' : hasChanges ? 'Save' : 'Saved'}</span>
+                        </button>
 
                         <button
                             onClick={() => {
@@ -311,61 +356,6 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
                         >
                             <PresentationIcon size={18} />
                             <span>Present</span>
-                        </button>
-
-                        {/* Export dropdown */}
-                        <div className="relative">
-                            <button
-                                onClick={() => setShowExportMenu(!showExportMenu)}
-                                className="px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl font-semibold flex items-center gap-2 transition-all"
-                            >
-                                <Download size={18} />
-                            </button>
-                            <AnimatePresence>
-                                {showExportMenu && (
-                                    <motion.div
-                                        initial={{ opacity: 0, y: -10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        exit={{ opacity: 0, y: -10 }}
-                                        className="absolute top-full right-0 mt-2 w-48 bg-slate-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50"
-                                    >
-                                        <button
-                                            onClick={exportToPDF}
-                                            className="w-full px-4 py-3 flex items-center gap-3 hover:bg-white/5 transition-colors text-left"
-                                        >
-                                            <FileText size={18} className="text-red-400" />
-                                            <div>
-                                                <div className="font-semibold text-sm">Export PDF</div>
-                                                <div className="text-xs text-text-dim">Print-ready format</div>
-                                            </div>
-                                        </button>
-                                        <button
-                                            onClick={exportToPPTX}
-                                            className="w-full px-4 py-3 flex items-center gap-3 hover:bg-white/5 transition-colors text-left border-t border-white/5"
-                                        >
-                                            <PresentationIcon size={18} className="text-orange-400" />
-                                            <div>
-                                                <div className="font-semibold text-sm">Export PPTX</div>
-                                                <div className="text-xs text-text-dim">PowerPoint format</div>
-                                            </div>
-                                        </button>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
-
-                        <button
-                            onClick={handleSave}
-                            disabled={!hasChanges && !isSaved}
-                            className={`px-5 py-2.5 rounded-xl font-semibold flex items-center gap-2 transition-all border ${isSaved
-                                ? 'bg-green-500/20 border-green-500/50 text-green-400'
-                                : hasChanges
-                                    ? 'bg-violet-500/20 border-violet-500/50 text-violet-300 hover:bg-violet-500/30'
-                                    : 'bg-white/5 border-white/10 text-text-dim cursor-not-allowed opacity-50'
-                                }`}
-                        >
-                            {isSaved ? <Check size={18} /> : <Save size={18} />}
-                            <span>{isSaved ? 'Saved' : hasChanges ? 'Save' : 'Saved'}</span>
                         </button>
                     </div>
                 </div>
