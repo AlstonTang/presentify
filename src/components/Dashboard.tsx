@@ -43,7 +43,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelect, onCreate, onPlay
     };
 
     return (
-        <div className="min-h-screen bg-[#050811] text-white selection:bg-violet-500/30">
+        <div className="min-h-screen bg-bg-dark text-white selection:bg-violet-500/30">
             <div className="relative z-10 max-w-[calc(100%-40px)] mx-auto px-6 py-12 lg:py-20">
                 <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 mb-16">
                     <motion.div
@@ -120,7 +120,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelect, onCreate, onPlay
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: index * 0.05 }}
                                     whileHover={{ y: -8 }}
-                                    className="glass-card group flex flex-col min-h-[220px] p-1"
+                                    className="glass-card group flex flex-col min-h-55 p-1"
                                 >
                                     <div
                                         onClick={() => onSelect(p.id)}
@@ -180,7 +180,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelect, onCreate, onPlay
             {/* Custom Delete Confirmation Modal */}
             <AnimatePresence>
                 {deletingId && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 sm:p-0">
+                    <div className="fixed inset-0 z-100 flex items-center justify-center p-6 sm:p-0">
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}

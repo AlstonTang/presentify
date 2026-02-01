@@ -252,7 +252,7 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-black"
+            className="fixed inset-0 z-100 bg-black"
 			style={{ background: getTheme(theme).background }} 
         >
             <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
@@ -266,7 +266,7 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
 
             <button
                 onClick={onClose}
-                className="fixed top-6 right-6 z-[110] w-12 h-12 flex items-center justify-center bg-black/50 hover:bg-black/70 backdrop-blur-xl border border-white/10 rounded-xl text-white/70 hover:text-white transition-all hover:scale-105 active:scale-95"
+                className="fixed top-6 right-6 z-110 w-12 h-12 flex items-center justify-center bg-black/50 hover:bg-black/70 backdrop-blur-xl border border-white/10 rounded-xl text-white/70 hover:text-white transition-all hover:scale-105 active:scale-95"
                 title="Exit (ESC)"
             >
                 <X size={24} />

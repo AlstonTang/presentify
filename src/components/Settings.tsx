@@ -3,8 +3,8 @@ import { Settings as SettingsIcon, X, Check, Zap } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { UserSettings } from '../types';
 import { storage } from '../utils/storage';
-import { themes } from '../utils/themes';
-import { fonts } from '../utils/fonts'
+import { ThemeSelector } from './ThemeSelector';
+import { FontSelector } from './FontSelector'
 
 interface SettingsProps {
     isOpen: boolean;
@@ -24,7 +24,7 @@ export const Settings: React.FC<SettingsProps> = ({ isOpen, onClose }) => {
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 sm:p-0">
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-6 sm:p-0">
             <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -36,7 +36,7 @@ export const Settings: React.FC<SettingsProps> = ({ isOpen, onClose }) => {
                 initial={{ opacity: 0, scale: 0.9, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                className="relative w-full max-w-2xl bg-[#0a0e1a] text-white border border-white/10 rounded-3xl shadow-2xl overflow-hidden"
+                className="relative w-full max-w-2xl bg-[#0a0e1a] text-white border border-white/10 rounded-3xl shadow-2xl"
             >
                 <div className="p-8">
                     <div className="flex items-center justify-between mb-8">
@@ -54,31 +54,15 @@ export const Settings: React.FC<SettingsProps> = ({ isOpen, onClose }) => {
                     <div className="space-y-8">
                         {/* Appearance Section */}
                         <section>
-                            <h3 className="text-xs font-bold uppercase tracking-widest text-text-dim mb-4">Default Appearance</h3>
+                            <h3 className="text-xs font-bold uppercase text-text-dim mb-4">Default Appearance</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="space-y-2">
+                                <div>
                                     <label className="text-sm font-semibold text-text-muted">Default Theme</label>
-                                    <select
-                                        value={settings.defaultTheme}
-                                        onChange={(e) => setSettings({ ...settings, defaultTheme: e.target.value })}
-                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-violet-500/50 transition-all font-medium text-sm"
-                                    >
-                                        {Object.values(themes).map(t => (
-                                            <option key={t.id} value={t.id} className="bg-slate-900">{t.label}</option>
-                                        ))}
-                                    </select>
+                                    <ThemeSelector currentTheme={settings.defaultTheme} onThemeChange={(e) => setSettings({ ...settings, defaultTheme: e })}/>
                                 </div>
-                                <div className="space-y-2">
+                                <div>
                                     <label className="text-sm font-semibold text-text-muted">Default Font</label>
-                                    <select
-                                        value={settings.defaultFontFamily}
-                                        onChange={(e) => setSettings({ ...settings, defaultFontFamily: e.target.value })}
-                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-violet-500/50 transition-all font-medium text-sm"
-                                    >
-                                        {fonts.map((font) => (
-											<option className="bg-slate-900">{font}</option>
-										))}
-                                    </select>
+                                    <FontSelector currentFont={settings.defaultFontFamily} onFontChange={(e) => setSettings({ ...settings, defaultFontFamily: e })}/>
                                 </div>
                             </div>
                         </section>
@@ -103,7 +87,7 @@ export const Settings: React.FC<SettingsProps> = ({ isOpen, onClose }) => {
                                             checked={settings.jumpToCurrentSlide}
                                             onChange={(e) => setSettings({ ...settings, jumpToCurrentSlide: e.target.checked })}
                                         />
-                                        <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-500" />
+                                        <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-500" />
                                     </label>
                                 </div>
                             </div>

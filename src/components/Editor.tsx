@@ -3,7 +3,6 @@ import {
     ArrowLeft,
     Save,
     Eye,
-    Layout,
     Check,
     AlignLeft,
     AlignCenter,
@@ -211,7 +210,7 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
     const nextSlide = () => setCurrentPreviewSlide(Math.min(slides.length - 1, currentPreviewSlide + 1));
 
     return (
-        <div className="flex flex-col h-screen bg-[#050811] text-white">
+        <div className="flex flex-col h-screen bg-bg-dark text-white">
             {/* Header / Toolbar */}
             <header className="h-16 px-6 border-b border-white/5 bg-slate-950/50 backdrop-blur-xl flex items-center justify-between shrink-0 relative z-20">
                 <div className="flex items-center gap-4 flex-1 min-w-0">
@@ -232,15 +231,8 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
                 </div>
 
                 <div className="flex items-center gap-4">
-                    <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-xl border border-white/10">
-                        <Layout size={16} className="text-text-dim" />
-                        <ThemeSelector currentTheme={theme} onThemeChange={setTheme} />
-                    </div>
-
-                    <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-xl border border-white/10">
-                        <Layout size={16} className="text-text-dim" />
-                        <FontSelector currentFont={fontFamily} onFontChange={setFontFamily} />
-                    </div>
+                    <ThemeSelector currentTheme={theme} onThemeChange={setTheme} />
+                    <FontSelector currentFont={fontFamily} onFontChange={setFontFamily} />
 
                     <div className="hidden lg:flex items-center gap-1 p-1 bg-white/5 rounded-xl border border-white/10">
                         <button
@@ -401,7 +393,7 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
                             initial={{ width: 0, opacity: 0 }}
                             animate={{ width: 360, opacity: 1 }}
                             exit={{ width: 0, opacity: 0 }}
-                            className="hidden xl:flex w-[360px] bg-slate-950/50 border-l border-white/5 flex-col overflow-hidden"
+                            className="hidden xl:flex w-90 bg-slate-950/50 border-l border-white/5 flex-col overflow-hidden"
                         >
                             <div className="p-4 border-b border-white/5 flex items-center justify-between">
                                 <h4 className="text-xs font-bold uppercase tracking-widest text-text-dim flex items-center gap-2">
@@ -441,12 +433,12 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
                                                 ? `${themeConfig.headingGradient} ${themeConfig.headingColor}`
                                                 : themeConfig.headingColor;
 
-                                            if (line.startsWith('# ')) return <h1 key={idx} className={`text-2xl font-bold ${headingClass} mb-4 break-words`}>{line.slice(2)}</h1>;
-                                            if (line.startsWith('## ')) return <h2 key={idx} className={`text-xl font-semibold ${headingClass} opacity-90 mb-3 break-words`}>{line.slice(3)}</h2>;
-                                            if (line.startsWith('### ')) return <h3 key={idx} className={`text-lg font-medium ${themeConfig.textColor} mb-2 break-words`}>{line.slice(4)}</h3>;
-                                            if (line.startsWith('- ')) return <p key={idx} className={`text-sm ${themeConfig.textColor} mb-1 pl-4 relative before:content-['•'] before:absolute before:left-0 before:text-white/40 break-words`}>{line.slice(2)}</p>;
+                                            if (line.startsWith('# ')) return <h1 key={idx} className={`text-2xl font-bold ${headingClass} mb-4 wrap-break-word`}>{line.slice(2)}</h1>;
+                                            if (line.startsWith('## ')) return <h2 key={idx} className={`text-xl font-semibold ${headingClass} opacity-90 mb-3 wrap-break-word`}>{line.slice(3)}</h2>;
+                                            if (line.startsWith('### ')) return <h3 key={idx} className={`text-lg font-medium ${themeConfig.textColor} mb-2 wrap-break-word`}>{line.slice(4)}</h3>;
+                                            if (line.startsWith('- ')) return <p key={idx} className={`text-sm ${themeConfig.textColor} mb-1 pl-4 relative before:content-['•'] before:absolute before:left-0 before:text-white/40 wrap-break-word`}>{line.slice(2)}</p>;
                                             if (line.includes('$')) return <p key={idx} className={`text-sm ${themeConfig.textColor} italic my-2 p-2 bg-white/5 rounded border border-white/5 text-center`}>📐 Math Expression</p>;
-                                            if (line.trim() && !line.startsWith('Note:')) return <p key={idx} className={`text-sm ${themeConfig.textColor} mb-1 leading-relaxed break-words`}>{line}</p>;
+                                            if (line.trim() && !line.startsWith('Note:')) return <p key={idx} className={`text-sm ${themeConfig.textColor} mb-1 leading-relaxed wrap-break-word`}>{line}</p>;
                                             return null;
                                         })}
                                     </div>

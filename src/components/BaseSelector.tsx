@@ -27,7 +27,7 @@ export function BaseSelector<T extends SelectorItem>({
     return (
         <div className="relative group/selector text-sm -mr-3">
             {/* Trigger Button */}
-            <button className="flex items-center gap-2.5 px-3 py-1.5 hover:bg-white/5 rounded-lg transition-all text-text-muted hover:text-white cursor-pointer group-hover/selector:bg-white/5 mr-3">
+            <button className="flex items-center gap-2.5 px-3 py-1.5 bg-gray-900 hover:bg-gray-700 rounded-lg transition-all text-text-muted hover:text-white cursor-pointer group-hover/selector:bg-white/5 mr-3">
                 <Icon size={14} className={iconColorClass} />
                 <span className="font-semibold tracking-wide whitespace-nowrap">
                     {selectedItem.label}
@@ -36,7 +36,7 @@ export function BaseSelector<T extends SelectorItem>({
             </button>
 
             {/* Dropdown Menu */}
-            <div className="absolute top-full right-0 pt-2 opacity-0 translate-y-2 pointer-events-none group-hover/selector:opacity-100 group-hover/selector:translate-y-0 group-hover/selector:pointer-events-auto transition-all z-[100]">
+            <div className="absolute top-full pt-2 opacity-0 translate-y-2 pointer-events-none group-hover/selector:opacity-100 group-hover/selector:translate-y-0 group-hover/selector:pointer-events-auto transition-all z-100">
                 <div className="w-56 bg-slate-950/90 backdrop-blur-2xl border border-white/10 rounded-2xl p-2 shadow-2xl translate-y-1">
                     <div className="grid grid-cols-1 gap-1">
                         {items.map((item) => (

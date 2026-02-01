@@ -229,7 +229,7 @@ const App: React.FC = () => {
 
 
     return (
-        <div className="min-h-screen bg-[#050811]">
+        <div className="min-h-screen bg-#050811">
             <AnimatePresence mode="wait">
                 {view === 'dashboard' && (
                     <motion.div
