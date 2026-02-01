@@ -51,99 +51,60 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
         link.id = linkId;
         document.head.appendChild(link);
 
-        // 2. Apply Immersive Custom Overrides for ALL Themes
+		// 2. Apply Immersive Custom Overrides for ALL Themes
         const style = document.createElement('style');
         style.id = customStyleId;
 
         // Base styles with crisp rendering
-        let customCss = `
-            @keyframes orbit {
-                0% { transform: translate(-10%, -10%) rotate(0deg); }
-                50% { transform: translate(10%, 10%) rotate(180deg); }
-                100% { transform: translate(-10%, -10%) rotate(360deg); }
-            }
-            @keyframes pulse-ring {
-                0% { transform: scale(0.9); opacity: 0.15; }
-                50% { transform: scale(1.1); opacity: 0.25; }
-                100% { transform: scale(0.9); opacity: 0.15; }
-            }
-            @keyframes shimmer {
-                0% { background-position: -200% 0; }
-                100% { background-position: 200% 0; }
-            }
+		let customCss = `
+		/* ... (keep your keyframes orbit/pulse/shimmer) ... */
 
-            /* Force crisp text rendering */
-            .reveal, .reveal * {
-                -webkit-font-smoothing: antialiased;
-                -moz-osx-font-smoothing: grayscale;
-                text-rendering: optimizeLegibility;
-            }
+		/* 1. MATCH THE PREVIEW CONTAINER */
+		.reveal-viewport { 
+			background: ${themeConfig.background} !important;
+			display: flex !important;
+			align-items: center !important;
+			justify-content: center !important;
+		}
 
-            .reveal { 
-                font-family: '${fontFamily}', system-ui, sans-serif !important; 
-            }
-            .reveal h1, .reveal h2, .reveal h3 { 
-                font-family: '${fontFamily}', system-ui, sans-serif !important; 
-                font-weight: 800 !important; 
-                text-transform: none !important; 
-                margin-bottom: 0.5em !important;
-                letter-spacing: -0.02em;
-            }
-            .reveal p, .reveal li { 
-                font-family: '${fontFamily}', system-ui, sans-serif !important; 
-                line-height: 1.7 !important; 
-            }
+		/* 2. MATCH THE TYPOGRAPHY LOGIC */
+		.reveal h1, .reveal h2 {
+			font-family: '${fontFamily}', sans-serif !important;
+			font-weight: 800 !important;
+			text-transform: none !important;
+			margin-bottom: 0.5em !important;
+			
+			/* This matches your preview's 'headingClass' logic */
+			color: ${themeConfig.headingColor} !important;
+			
+			${themeConfig.headingGradient ? `
+				background: ${themeConfig.headingGradient} !important;
+				-webkit-background-clip: text !important;
+				-webkit-text-fill-color: transparent !important;
+				background-clip: text !important;
+				/* Ensure gradient doesn't clip shadow */
+				display: inline-block; 
+			` : ''}
 
-            /* Full viewport background - no shrinking */
-            .reveal-viewport { 
-                background: #000 !important;
-                position: fixed !important;
-                inset: 0 !important;
-                width: 100vw !important;
-                height: 100vh !important;
-            }
+			${themeConfig.textShadow ? `text-shadow: ${themeConfig.textShadow} !important;` : 'text-shadow: none !important;'}
+		}
 
-            /* Ensure slides don't clip backgrounds */
-            .reveal .slides {
-                background: transparent !important;
-            }
-            .reveal .slides > section,
-            .reveal .slides > section > section {
-                background: transparent !important;
-            }
+		/* 3. MATCH THE BODY TEXT */
+		.reveal h3, .reveal p, .reveal li, .reveal blockquote {
+			color: ${themeConfig.textColor} !important;
+			font-family: '${fontFamily}', sans-serif !important;
+			line-height: 1.6 !important;
+		}
 
-            /* Alignment classes */
-            .reveal .align-left { text-align: left !important; }
-            .reveal .align-left > * { text-align: left !important; }
-            .reveal .align-left ul, .reveal .align-left ol { display: block; margin-left: 1em; }
-        `;
-
-        // Theme-specific immersive backgrounds - Using centralized ThemeConfig
-
-        customCss += `
-            .reveal-viewport { 
-                background: ${themeConfig.revealBg} !important;
-                /* Ensure full viewport usage */
-                ${themeConfig.id !== 'black' ? 'overflow: visible !important;' : ''}
-            }
-            
-            .reveal { position: relative; z-index: 1; }
-            
-            .reveal h1, .reveal h2 { 
-                 ${themeConfig.revealHeadingColor ? `color: ${themeConfig.revealHeadingColor} !important;` : ''}
-                 ${themeConfig.revealHeadingGradient ? `
-                    background: ${themeConfig.revealHeadingGradient};
-                    -webkit-background-clip: text;
-                    -webkit-text-fill-color: transparent;
-                    background-clip: text;
-                 ` : ''}
-                 ${themeConfig.revealTextShadow ? `text-shadow: ${themeConfig.revealTextShadow} !important;` : ''}
-            }
-            
-            ${themeConfig.revealTextColor ? `.reveal h3, .reveal p, .reveal li { color: ${themeConfig.revealTextColor} !important; }` : ''}
-
-            ${themeConfig.customCss || ''}
-        `;
+		/* 4. REMOVE REVEAL.JS DEFAULT OVERLAYS */
+		.reveal .slides section {
+			background: transparent !important;
+			border: none !important;
+			box-shadow: none !important;
+		}
+		
+		${themeConfig.customCss || ''}
+	`;
 
 
         style.appendChild(document.createTextNode(customCss));
@@ -292,13 +253,16 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[100] bg-black"
+			style={{ background: getTheme(theme).background }} 
         >
-            {/* Theme background effects - rendered as real DOM elements */}{getTheme(theme).bgEffectClass && (
-                <div className={getTheme(theme).bgEffectClass} />
-            )}
-            {getTheme(theme).bgEffectClass2 && (
-                <div className={getTheme(theme).bgEffectClass2} />
-            )}
+            <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+                {getTheme(theme).bgEffectClass && (
+                    <div className={getTheme(theme).bgEffectClass} />
+                )}
+                {getTheme(theme).bgEffectClass2 && (
+                    <div className={getTheme(theme).bgEffectClass2} />
+                )}
+            </div>
 
             <button
                 onClick={onClose}
@@ -308,7 +272,7 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
                 <X size={24} />
             </button>
 
-            <div className="reveal h-full w-full" ref={deckRef}>
+            <div className="reveal h-full w-full z-10" ref={deckRef}>
                 <div className="slides">
                     {slides.map((slide, index) => (
                         slide.type === 'vertical' && slide.subSlides ? (

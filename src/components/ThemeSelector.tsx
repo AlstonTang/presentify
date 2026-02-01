@@ -12,15 +12,15 @@ export const ThemeSelector: React.FC<ThemeSelectorProps> = ({ currentTheme, onTh
     const selectedTheme = themes[currentTheme] || themes['black'];
 
     return (
-        <div className="relative group/theme text-sm">
-            <button className="flex items-center gap-2.5 px-3 py-1.5 hover:bg-white/5 rounded-lg transition-all text-text-muted hover:text-white cursor-pointer group-hover/theme:bg-white/5">
+        <div className="relative group/theme text-sm -mr-3">
+            <button className="flex items-center gap-2.5 px-3 py-1.5 hover:bg-white/5 rounded-lg transition-all text-text-muted hover:text-white cursor-pointer group-hover/theme:bg-white/5 mr-3">
                 <Palette size={14} className="text-violet-400" />
                 <span className="font-semibold tracking-wide whitespace-nowrap">{selectedTheme.label}</span>
                 <ChevronDown size={14} className="opacity-40 group-hover/theme:rotate-180 transition-transform" />
             </button>
 
             <div className="absolute top-full right-0 pt-2 opacity-0 translate-y-2 pointer-events-none group-hover/theme:opacity-100 group-hover/theme:translate-y-0 group-hover/theme:pointer-events-auto transition-all z-[100]">
-                <div className="w-56 bg-slate-950/90 backdrop-blur-2xl border border-white/10 rounded-2xl p-2 shadow-2xl">
+                <div className="w-56 bg-slate-950/90 backdrop-blur-2xl border border-white/10 rounded-2xl p-2 shadow-2xl translate-y-1">
                     <div className="grid grid-cols-1 gap-1">
                         {themeList.map(theme => (
                             <button

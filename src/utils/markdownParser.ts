@@ -10,17 +10,14 @@ export function parseMarkdownToSlides(markdown: string): SlideContent[] {
     const result: SlideContent[] = [];
     let currentSecondaryTitle = '';
 
-    // RE-IMPLEMENTING with line tracking
     const lines = markdown.split('\n');
     let currentSlideLines: string[] = [];
     let startLine = 0;
 
     const pushSlide = (sectionLines: string[], sLine: number) => {
-        const text = sectionLines.join('\n');
-        if (!text.trim()) return;
+        const text = sectionLines.join('\n').trim();
+        if (!text || text === '---') return;
 
-        // 2. Inside each horizontal section, check for Vertical separators (-- or H3+)
-        // These represent sub-slides under the current main slide.
         const verticalSects = text.split(/\n\s*--\s*\n|\n(?=###+\s)/g);
 
         if (verticalSects.length > 1) {
@@ -31,19 +28,17 @@ export function parseMarkdownToSlides(markdown: string): SlideContent[] {
                 const chunkSlides = parseAndProcess(vSect, currentSecondaryTitle, sLine + vStartOffset);
                 if (chunkSlides.length === 0) return;
 
-                // Update H2 tracker from the first slide in this vertical chunk if it contains an H2
                 const h2Match = chunkSlides[0].content.match(/^##\s+(.+)$/m);
                 if (h2Match) currentSecondaryTitle = h2Match[1].trim();
 
                 subSlides.push(...chunkSlides);
-                vStartOffset += vLines.length + 1; // +1 for the separator line
+                vStartOffset += vLines.length + 1;
             });
 
             if (subSlides.length > 0) {
                 result.push({ type: 'vertical', content: '', subSlides });
             }
         } else {
-            // Single vertical slide (may be auto-split later)
             const chunkSlides = parseAndProcess(text, currentSecondaryTitle, sLine);
             if (chunkSlides.length === 0) return;
 
@@ -59,11 +54,19 @@ export function parseMarkdownToSlides(markdown: string): SlideContent[] {
     };
 
     lines.forEach((line, idx) => {
-        const isHorizontalSep = line.trim() === '---' || line.startsWith('# ') || line.startsWith('## ');
-        if (isHorizontalSep && idx > 0 && currentSlideLines.length > 0) {
-            pushSlide(currentSlideLines, startLine);
-            currentSlideLines = [];
+        const trimmed = line.trim();
+        const isExplicitSep = trimmed === '---';
+        const isHeaderSep = line.startsWith('# ') || line.startsWith('## ');
+
+        if (isExplicitSep || isHeaderSep) {
+            // Only push if the current buffer has meaningful content
+            if (currentSlideLines.length > 0 && currentSlideLines.some(l => l.trim() !== '')) {
+                pushSlide(currentSlideLines, startLine);
+                currentSlideLines = [];
+            }
+            
             startLine = idx;
+            if (isExplicitSep) return;
         }
         currentSlideLines.push(line);
     });

@@ -44,11 +44,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelect, onCreate, onPlay
 
     return (
         <div className="min-h-screen bg-[#050811] text-white selection:bg-violet-500/30">
-            {/* Background Blobs */}
-            <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-violet-600/10 blur-[120px] rounded-full z-0" />
-            <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/10 blur-[120px] rounded-full z-0" />
-
-            <div className="relative z-10 max-w-7xl mx-auto px-6 py-12 lg:py-20">
+            <div className="relative z-10 max-w-[calc(100%-40px)] mx-auto px-6 py-12 lg:py-20">
                 <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 mb-16">
                     <motion.div
                         initial={{ opacity: 0, x: -20 }}
@@ -62,7 +58,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelect, onCreate, onPlay
                                 Presentify
                             </h1>
                         </div>
-                        <p className="text-text-muted text-lg max-w-md">
+                        <p className="text-text-muted text-lg">
                             Create cinematic presentations from your notes in seconds.
                         </p>
                     </motion.div>

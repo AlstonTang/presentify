@@ -402,8 +402,6 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
                         style={{ fontFamily: 'JetBrains Mono, monospace', lineHeight: '27px' }}
                         placeholder="Write your content here!"
                     />
-
-
                 </div>
 
                 {/* Live Preview Panel */}
@@ -444,7 +442,7 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
                             {/* Slide Preview */}
                             <div className="flex-1 p-4 overflow-hidden flex flex-col">
                                 <div
-                                    className={`w-full aspect-video rounded-xl border border-white/10 overflow-hidden flex flex-col p-6 ${getTheme(theme).previewBgClass}`}
+                                    className={`w-full aspect-video rounded-xl border border-white/10 overflow-hidden flex flex-col p-6`} style={{ background: getTheme(theme).background }}
                                 >
                                     <div className={`w-full h-full overflow-y-auto ${globalAlignment === 'left' ? 'text-left' : 'text-center'}`} style={{ fontFamily: `'${fontFamily}', sans-serif` }}>
                                         {slides[currentPreviewSlide]?.content.split('\n').map((line, idx) => {
