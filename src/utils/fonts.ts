@@ -5,11 +5,11 @@ export interface Font {
 }
 
 export const fonts: Font[] = [
-    { id: 'arial', label: 'Arial', fontFamily: 'Arial, sans-serif' },
-    { id: 'inter', label: 'Inter', fontFamily: '"Inter", sans-serif' },
-    { id: 'jetbrains', label: 'Jetbrains Mono', fontFamily: '"JetBrains Mono", monospace' },
-    { id: 'outer', label: 'Outer', fontFamily: 'Outer, sans-serif' },
-    { id: 'playfair', label: 'Playfair Display', fontFamily: '"Playfair Display", serif' },
+    { id: 'Arial', label: 'Arial', fontFamily: 'Arial, sans-serif' },
+    { id: 'Helvetica', label: 'Helvetica', fontFamily: '"Helvetica", sans-serif' },
+    { id: 'JetBrains Mono', label: 'Jetbrains Mono', fontFamily: '"JetBrains Mono", monospace' },
+	{ id: 'Tahoma', label: 'Tahoma', fontFamily: '"Tahoma", sans-serif' },
+	{ id: 'Times New Roman', label: 'Times New Roman', fontFamily: '"Times New Roman", serif' },
 ];
 
 // Helper to get font by ID (useful for the "selectedItem" prop)

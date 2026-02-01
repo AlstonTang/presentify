@@ -57,8 +57,6 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
 
         // Base styles with crisp rendering
 		let customCss = `
-		/* ... (keep your keyframes orbit/pulse/shimmer) ... */
-
 		/* 1. MATCH THE PREVIEW CONTAINER */
 		.reveal-viewport { 
 			background: ${themeConfig.background} !important;
@@ -82,8 +80,7 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
 				-webkit-background-clip: text !important;
 				-webkit-text-fill-color: transparent !important;
 				background-clip: text !important;
-				/* Ensure gradient doesn't clip shadow */
-				display: inline-block; 
+				display: block; 
 			` : ''}
 
 			${themeConfig.textShadow ? `text-shadow: ${themeConfig.textShadow} !important;` : 'text-shadow: none !important;'}
@@ -101,6 +98,35 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
 			background: transparent !important;
 			border: none !important;
 			box-shadow: none !important;
+		}
+
+		/* Ensure headers and lists inside left-aligned slides also move left */
+		.reveal .slides section.left-align h1,
+		.reveal .slides section.left-align h2,
+		.reveal .slides section.left-align h3,
+		.reveal .slides section.left-align p,
+		.reveal .slides section.left-align ul,
+		.reveal .slides section.left-align ol {
+			text-align: left !important;
+			/* If using flex layout for centering, this pushes content to the start */
+			align-self: flex-start !important;
+			width: 100%;
+		}
+
+		/* SPECIFIC BLOCKQUOTE FIX */
+		.reveal .slides section.left-align blockquote {
+			text-align: left !important;
+			margin-left: 0 !important;      /* Overrides reveal.js default 'auto' margin */
+			margin-right: auto !important;  /* Keeps it from stretching if not desired */
+			padding-left: 1em !important;   /* Keeps a nice gap for the border/quote line */
+			width: 100% !important;         /* Allows text to utilize full width */
+			box-shadow: none !important;    /* Optional: cleaner look */
+		}
+	
+		/* Ensure list items are also left-justified within their container */
+		.reveal .slides section.left-align li {
+			text-align: left !important;
+			list-style-position: inside;   /* Optional: ensures bullets don't hang off edge */
 		}
 		
 		${themeConfig.customCss || ''}
@@ -273,40 +299,43 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
             </button>
 
             <div className="reveal h-full w-full z-10" ref={deckRef}>
-                <div className="slides">
-                    {slides.map((slide, index) => (
-                        slide.type === 'vertical' && slide.subSlides ? (
-                            <section key={index}>
-                                {slide.subSlides.map((sub, subIdx) => {
-                                    const isLeft = sub.alignment === 'left' || globalAlignment === 'left';
-                                    return (
-                                        <section
-                                            key={`${index}-${subIdx}`}
-                                            data-markdown=""
-                                            className={isLeft ? 'align-left' : ''}
-                                        >
-                                            <textarea
-                                                data-template
-                                                defaultValue={`${sub.content}${sub.notes ? `\n\nNote:\n${sub.notes}` : ''}`}
-                                            />
-                                        </section>
-                                    );
-                                })}
-                            </section>
-                        ) : (
-                            <section
-                                key={index}
-                                data-markdown=""
-                                className={(slide.alignment === 'left' || globalAlignment === 'left') ? 'align-left' : ''}
-                            >
-                                <textarea
-                                    data-template
-                                    defaultValue={`${slide.content}${slide.notes ? `\n\nNote:\n${slide.notes}` : ''}`}
-                                />
-                            </section>
-                        )
-                    ))}
-                </div>
+				<div className="slides">
+				{slides.map((slide, index) => (
+					slide.type === 'vertical' && slide.subSlides ? (
+						<section key={index}>
+							{slide.subSlides.map((sub, subIdx) => {
+								// Check if either this specific sub-slide or the global setting is left
+								const isLeft = sub.alignment === 'left' || globalAlignment === 'left';
+								return (
+									<section
+										key={`${index}-${subIdx}`}
+										data-markdown=""
+										// Apply the helper class here
+										className={isLeft ? 'left-align' : ''}
+									>
+										<textarea
+											data-template
+											defaultValue={`${sub.content}${sub.notes ? `\n\nNote:\n${sub.notes}` : ''}`}
+										/>
+									</section>
+								);
+							})}
+						</section>
+					) : (
+						<section
+							key={index}
+							data-markdown=""
+							// Apply the helper class here
+							className={(slide.alignment === 'left' || globalAlignment === 'left') ? 'left-align' : ''}
+						>
+							<textarea
+								data-template
+								defaultValue={`${slide.content}${slide.notes ? `\n\nNote:\n${slide.notes}` : ''}`}
+							/>
+						</section>
+					)
+				))}
+				</div>
             </div>
         </motion.div>
     );
