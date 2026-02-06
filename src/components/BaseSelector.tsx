@@ -36,7 +36,7 @@ export function BaseSelector<T extends SelectorItem>({
             </button>
 
             {/* Dropdown Menu */}
-            <div className="absolute top-full pt-2 opacity-0 translate-y-2 pointer-events-none group-hover/selector:opacity-100 group-hover/selector:translate-y-0 group-hover/selector:pointer-events-auto transition-all z-100">
+            <div className="absolute top-full pt-2 opacity-0 translate-y-2 max-h-108 overflow-y-auto overflow-x-hidden pointer-events-none group-hover/selector:opacity-100 group-hover/selector:translate-y-0 group-hover/selector:pointer-events-auto transition-all z-100">
                 <div className="w-56 bg-slate-950/90 backdrop-blur-2xl border border-white/10 rounded-2xl p-2 shadow-2xl translate-y-1">
                     <div className="grid grid-cols-1 gap-1">
                         {items.map((item) => (

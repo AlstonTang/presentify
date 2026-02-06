@@ -19,6 +19,7 @@ interface PresentationViewerProps {
     fontFamily?: string;
     onClose: () => void;
     initialIndices?: [number, number];
+    globalTransition: string | 'none';
 }
 
 export const PresentationViewer: React.FC<PresentationViewerProps> = ({
@@ -27,10 +28,12 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
     globalAlignment = 'center',
     fontFamily = 'Outfit',
     onClose,
-    initialIndices
+    initialIndices,
+    globalTransition
 }) => {
     const deckRef = React.useRef<HTMLDivElement>(null);
-    const slides = React.useMemo(() => parseMarkdownToSlides(markdown), [markdown]);
+    const revealInstance = React.useRef<Reveal.Api | null>(null);
+    const slides = React.useMemo(() => parseMarkdownToSlides(markdown, globalTransition), [markdown, globalTransition]);
 
     React.useEffect(() => {
         // Dynamically load theme CSS
@@ -51,12 +54,12 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
         link.id = linkId;
         document.head.appendChild(link);
 
-		// 2. Apply Immersive Custom Overrides for ALL Themes
+        // 2. Apply Immersive Custom Overrides for ALL Themes
         const style = document.createElement('style');
         style.id = customStyleId;
 
         // Base styles with crisp rendering
-		let customCss = `
+        let customCss = `
 		/* 1. MATCH THE PREVIEW CONTAINER */
 		.reveal-viewport { 
 			background: ${themeConfig.background} !important;
@@ -127,6 +130,17 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
 		.reveal .slides section.left-align li {
 			text-align: left !important;
 			list-style-position: inside;   /* Optional: ensures bullets don't hang off edge */
+		}
+
+		/* FRAGMENT LIST ITEMS: Hide bullet until fragment is visible */
+		/* When a list item contains a fragment span that's not yet visible, hide the entire item */
+		.reveal li:has(> span.fragment:not(.visible)) {
+			list-style-type: none !important;
+		}
+		/* Also hide the bullet marker using ::marker pseudo-element for broader support */
+		.reveal li:has(> span.fragment:not(.visible))::marker {
+			color: transparent !important;
+			font-size: 0 !important;
 		}
 		
 		${themeConfig.customCss || ''}
@@ -221,6 +235,14 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
         };
 
         if (deckRef.current) {
+            if (revealInstance.current) {
+                try {
+                    revealInstance.current.destroy();
+                } catch (e) {
+                    console.error("Error destroying reveal instance", e);
+                }
+            }
+
             const deck = new Reveal(deckRef.current, {
                 plugins: [Markdown, Notes, Math.KaTeX, MermaidPlugin as any],
                 width: 1920,
@@ -237,6 +259,7 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
                     notesSeparator: 'Note:'
                 },
                 center: globalAlignment === 'center',
+                fragments: true,
                 katex: {
                     version: 'latest',
                     delimiters: [
@@ -255,6 +278,8 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
                 }
                 deck.layout();
             });
+
+            revealInstance.current = deck;
         }
 
         return () => {
@@ -263,7 +288,7 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
             const styleToRemove = document.getElementById(customStyleId);
             if (styleToRemove) styleToRemove.remove();
         };
-    }, [theme, globalAlignment, fontFamily]);
+    }, [theme, globalAlignment, fontFamily, globalTransition, markdown]);
 
     React.useEffect(() => {
         const handleEsc = (e: KeyboardEvent) => {
@@ -279,7 +304,7 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-100 bg-black"
-			style={{ background: getTheme(theme).background }} 
+            style={{ background: getTheme(theme).background }}
         >
             <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
                 {getTheme(theme).bgEffectClass && (
@@ -299,43 +324,43 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
             </button>
 
             <div className="reveal h-full w-full z-10" ref={deckRef}>
-				<div className="slides">
-				{slides.map((slide, index) => (
-					slide.type === 'vertical' && slide.subSlides ? (
-						<section key={index}>
-							{slide.subSlides.map((sub, subIdx) => {
-								// Check if either this specific sub-slide or the global setting is left
-								const isLeft = sub.alignment === 'left' || globalAlignment === 'left';
-								return (
-									<section
-										key={`${index}-${subIdx}`}
-										data-markdown=""
-										// Apply the helper class here
-										className={isLeft ? 'left-align' : ''}
-									>
-										<textarea
-											data-template
-											defaultValue={`${sub.content}${sub.notes ? `\n\nNote:\n${sub.notes}` : ''}`}
-										/>
-									</section>
-								);
-							})}
-						</section>
-					) : (
-						<section
-							key={index}
-							data-markdown=""
-							// Apply the helper class here
-							className={(slide.alignment === 'left' || globalAlignment === 'left') ? 'left-align' : ''}
-						>
-							<textarea
-								data-template
-								defaultValue={`${slide.content}${slide.notes ? `\n\nNote:\n${slide.notes}` : ''}`}
-							/>
-						</section>
-					)
-				))}
-				</div>
+                <div className="slides">
+                    {slides.map((slide, index) => (
+                        slide.type === 'vertical' && slide.subSlides ? (
+                            <section key={index}>
+                                {slide.subSlides.map((sub, subIdx) => {
+                                    // Check if either this specific sub-slide or the global setting is left
+                                    const isLeft = sub.alignment === 'left' || globalAlignment === 'left';
+                                    return (
+                                        <section
+                                            key={`${index}-${subIdx}-${globalTransition}`}
+                                            data-markdown=""
+                                            // Apply the helper class here
+                                            className={isLeft ? 'left-align' : ''}
+                                        >
+                                            <textarea
+                                                data-template
+                                                defaultValue={`${sub.content}${sub.notes ? `\n\nNote:\n${sub.notes}` : ''}`}
+                                            />
+                                        </section>
+                                    );
+                                })}
+                            </section>
+                        ) : (
+                            <section
+                                key={`${index}-${globalTransition}`}
+                                data-markdown=""
+                                // Apply the helper class here
+                                className={(slide.alignment === 'left' || globalAlignment === 'left') ? 'left-align' : ''}
+                            >
+                                <textarea
+                                    data-template
+                                    defaultValue={`${slide.content}${slide.notes ? `\n\nNote:\n${slide.notes}` : ''}`}
+                                />
+                            </section>
+                        )
+                    ))}
+                </div>
             </div>
         </motion.div>
     );

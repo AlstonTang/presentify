@@ -17,6 +17,7 @@ import {
 import type { Presentation } from '../types';
 import { FontSelector } from './FontSelector';
 import { ThemeSelector } from './ThemeSelector';
+import { TransitionSelector } from './TransitionSelector';
 import { motion, AnimatePresence } from 'framer-motion';
 import { parseMarkdownToSlides } from '../utils/markdownParser';
 import { storage } from '../utils/storage';
@@ -35,7 +36,8 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
     const [title, setTitle] = React.useState(presentation.title);
     const [theme, setTheme] = React.useState(presentation.theme || 'black');
     const [globalAlignment, setGlobalAlignment] = React.useState<'center' | 'left'>(presentation.globalAlignment || 'center');
-    const [fontFamily, setFontFamily] = React.useState(presentation.fontFamily || 'Outfit');
+    const [fontFamily, setFontFamily] = React.useState(presentation.fontFamily || 'Tahoma');
+	const [globalTransition, setGlobalTransition] = React.useState(presentation.globalTransition || 'none');
     const [showGuide, setShowGuide] = React.useState(false);
     const [showPreview, setShowPreview] = React.useState(true);
     const [isSaved, setIsSaved] = React.useState(false);
@@ -57,8 +59,9 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
             title !== presentation.title ||
             theme !== presentation.theme ||
             globalAlignment !== presentation.globalAlignment ||
-            fontFamily !== presentation.fontFamily;
-    }, [markdown, title, theme, globalAlignment, fontFamily, presentation]);
+            fontFamily !== presentation.fontFamily ||
+            globalTransition !== presentation.globalTransition;
+    }, [markdown, title, theme, globalAlignment, globalTransition, fontFamily, presentation]);
 
     // Parse slides for preview
     const slides = React.useMemo(() => {
@@ -122,7 +125,7 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
     };
 
     const handleSave = () => {
-        onSave({ ...presentation, title, markdown, theme, globalAlignment, fontFamily });
+        onSave({ ...presentation, title, markdown, theme, globalAlignment, fontFamily, globalTransition });
         setIsSaved(true);
         setTimeout(() => setIsSaved(false), 2000);
     };
@@ -233,6 +236,7 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
                 <div className="flex items-center gap-4">
                     <ThemeSelector currentTheme={theme} onThemeChange={setTheme} />
                     <FontSelector currentFont={fontFamily} onFontChange={setFontFamily} />
+                    <TransitionSelector currentTransition={globalTransition} onTransitionChange={setGlobalTransition} />
 
                     <div className="hidden lg:flex items-center gap-1 p-1 bg-white/5 rounded-xl border border-white/10">
                         <button
@@ -331,7 +335,7 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
                         <button
                             onClick={() => {
                                 // Save current state before presenting
-                                onSave({ ...presentation, title, markdown, theme, globalAlignment, fontFamily });
+                                onSave({ ...presentation, title, markdown, theme, globalAlignment, fontFamily, globalTransition });
 
                                 if (settings.jumpToCurrentSlide) {
                                     if (lastInteraction === 'preview') {

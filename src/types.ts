@@ -1,3 +1,7 @@
+import { transitions } from './utils/transitions'
+
+export type transitions = (typeof transitions)[number]['id']
+
 export interface Presentation {
     id: string;
     title: string;
@@ -5,6 +9,7 @@ export interface Presentation {
     theme: string;
     globalAlignment?: 'center' | 'left';
     fontFamily?: string;
+    globalTransition?: transitions;
     createdAt: number;
     updatedAt: number;
 }
@@ -15,7 +20,8 @@ export interface SlideContent {
     notes?: string;
     background?: string;
     subSlides?: SlideContent[];
-    alignment?: 'center' | 'left';
+    transition?: transitions;
+    alignment?: string;
     sourceLineRange?: [number, number]; // [startLine, endLine] 0-indexed
 }
 

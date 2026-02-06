@@ -1,4 +1,4 @@
-import type { SlideContent } from '../types';
+import type { SlideContent, transitions } from '../types';
 
 /**
  * Thresholds for auto-splitting long content
@@ -6,7 +6,7 @@ import type { SlideContent } from '../types';
 const AUTO_SPLIT_CHAR_LIMIT = 1500;
 const AUTO_SPLIT_LINE_LIMIT = 24;
 
-export function parseMarkdownToSlides(markdown: string): SlideContent[] {
+export function parseMarkdownToSlides(markdown: string, globalTransition: transitions = 'none'): SlideContent[] {
     const result: SlideContent[] = [];
     let currentSecondaryTitle = '';
 
@@ -18,6 +18,7 @@ export function parseMarkdownToSlides(markdown: string): SlideContent[] {
         const text = sectionLines.join('\n').trim();
         if (!text || text === '---') return;
 
+        // Split into vertical sections based on "--" or "###" headers
         const verticalSects = text.split(/\n\s*--\s*\n|\n(?=###+\s)/g);
 
         if (verticalSects.length > 1) {
@@ -25,13 +26,13 @@ export function parseMarkdownToSlides(markdown: string): SlideContent[] {
             let vStartOffset = 0;
             verticalSects.forEach(vSect => {
                 const vLines = vSect.split('\n');
-                const chunkSlides = parseAndProcess(vSect, currentSecondaryTitle, sLine + vStartOffset);
-                if (chunkSlides.length === 0) return;
+                const chunkSlides = parseAndProcess(vSect, currentSecondaryTitle, sLine + vStartOffset, globalTransition);
 
-                const h2Match = chunkSlides[0].content.match(/^##\s+(.+)$/m);
-                if (h2Match) currentSecondaryTitle = h2Match[1].trim();
-
-                subSlides.push(...chunkSlides);
+                if (chunkSlides.length > 0) {
+                    const h2Match = chunkSlides[0].content.match(/^##\s+(.+)$/m);
+                    if (h2Match) currentSecondaryTitle = h2Match[1].trim();
+                    subSlides.push(...chunkSlides);
+                }
                 vStartOffset += vLines.length + 1;
             });
 
@@ -39,7 +40,7 @@ export function parseMarkdownToSlides(markdown: string): SlideContent[] {
                 result.push({ type: 'vertical', content: '', subSlides });
             }
         } else {
-            const chunkSlides = parseAndProcess(text, currentSecondaryTitle, sLine);
+            const chunkSlides = parseAndProcess(text, currentSecondaryTitle, sLine, globalTransition);
             if (chunkSlides.length === 0) return;
 
             const h2Match = chunkSlides[0].content.match(/^##\s+(.+)$/m);
@@ -59,12 +60,10 @@ export function parseMarkdownToSlides(markdown: string): SlideContent[] {
         const isHeaderSep = line.startsWith('# ') || line.startsWith('## ');
 
         if (isExplicitSep || isHeaderSep) {
-            // Only push if the current buffer has meaningful content
             if (currentSlideLines.length > 0 && currentSlideLines.some(l => l.trim() !== '')) {
                 pushSlide(currentSlideLines, startLine);
                 currentSlideLines = [];
             }
-            
             startLine = idx;
             if (isExplicitSep) return;
         }
@@ -75,38 +74,137 @@ export function parseMarkdownToSlides(markdown: string): SlideContent[] {
     return result.filter(s => s.content || (s.subSlides && s.subSlides.length > 0));
 }
 
-/**
- * Internal helper to parse a block of text into SlideContent and handle auto-splitting
- */
-function parseAndProcess(text: string, parentTitle: string, startLine: number): SlideContent[] {
+function parseAndProcess(text: string, parentTitle: string, startLine: number, globalTransition: transitions): SlideContent[] {
     const trimmed = text.trim();
     if (!trimmed) return [];
 
     const slide = parseSlide(trimmed, parentTitle);
     slide.sourceLineRange = [startLine, startLine + text.split('\n').length - 1];
+
+    const transitionToUse = (slide.transition && slide.transition !== 'none')
+        ? slide.transition
+        : globalTransition;
+
+    if (transitionToUse && transitionToUse !== 'none') {
+        slide.content = applyFragments(slide.content, transitionToUse);
+    }
+
     return autoSplitIfLong(slide, startLine);
 }
 
-function parseSlide(text: string, parentTitle: string = ''): SlideContent {
+/**
+ * Injects Reveal.js fragment classes.
+ * 
+ * Strategy:
+ * - For code/math blocks: Apply comment on same line (these are block-level elements)
+ * - For list items: Wrap content in <span class="fragment"> to directly apply the class
+ * - For paragraphs: Put comment on SEPARATE LINE after content, so it becomes a sibling 
+ *   of the <p> element rather than a child (preventing it from attaching to inline elements)
+ */
+function applyFragments(content: string, type: string): string {
+    const lines = content.split('\n');
+    const cleanType = type.replace(/^fragment\s+/, '');
+    const fragmentClass = `fragment ${cleanType}`.trim();
+
+    let inCodeBlock = false;
+    let inMathBlock = false;
+    const result: string[] = [];
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const trimmed = line.trim();
+
+        // 1. Handle Code Blocks - fragment on opening line
+        if (trimmed.startsWith('```')) {
+            inCodeBlock = !inCodeBlock;
+            if (inCodeBlock && !line.includes('.element')) {
+                result.push(`${line} <!-- .element: class="${fragmentClass}" -->`);
+            } else {
+                result.push(line);
+            }
+            continue;
+        }
+
+        // 2. Handle Multi-line Math Blocks ($$) - fragment on opening line
+        if (trimmed.startsWith('$$') && !trimmed.endsWith('$$')) {
+            inMathBlock = !inMathBlock;
+            if (inMathBlock && !line.includes('.element')) {
+                result.push(`${line} <!-- .element: class="${fragmentClass}" -->`);
+            } else {
+                result.push(line);
+            }
+            continue;
+        }
+
+        // 3. Skip conditions (inside blocks or special lines)
+        if (
+            inCodeBlock ||
+            inMathBlock ||
+            !trimmed ||
+            trimmed.startsWith('#') ||
+            trimmed === '---' ||
+            trimmed === '--' ||
+            trimmed.startsWith('::') ||
+            trimmed.startsWith('Note:') ||
+            line.includes('.element') ||
+            line.includes(`class="${fragmentClass}"`)
+        ) {
+            result.push(line);
+            continue;
+        }
+
+        // 4. Handle List Items - wrap content in fragment span
+        // This directly applies the class without relying on sibling resolution
+        const listMatch = line.match(/^(\s*)([-*+]|\d+\.)\s+/);
+        if (listMatch) {
+            const prefix = listMatch[0];
+            const itemContent = line.substring(prefix.length);
+
+            // Task lists need special handling to preserve checkbox parsing
+            if (itemContent.trim().match(/^\[[ xX]\]/)) {
+                result.push(`${line} <!-- .element: class="${fragmentClass}" -->`);
+                continue;
+            }
+
+            // Wrap content in span with fragment class
+            result.push(`${prefix}<span class="${fragmentClass}">${itemContent}</span>`);
+            continue;
+        }
+
+        // 5. Regular paragraph content
+        // Add comment on its OWN LINE after the content
+        // This makes the comment a sibling of <p>, so the class applies to the paragraph
+        // rather than the last inline element inside it
+        result.push(line);
+        result.push(`<!-- .element: class="${fragmentClass}" -->`);
+    }
+
+    return result.join('\n');
+}
+
+function parseSlide(text: string, parentTitle: string = '', defaultTransition: transitions = 'none'): SlideContent {
     let content = processMediaSyntax(text.trim());
     let notes = '';
     let alignment: 'center' | 'left' = 'center';
+    let transition: transitions = defaultTransition;
 
-    // 1. Detect selective alignment marker ::left
     if (content.startsWith('::left')) {
         alignment = 'left';
         content = content.replace(/^::left\s*/, '').trim();
     }
 
-    // 2. Extract speaker notes
+    const fragmentMatch = content.match(/^::fragment\s+(\S+)/);
+    if (fragmentMatch) {
+        transition = fragmentMatch[1] as transitions;
+        content = content.replace(/^::fragment\s+\S+\s*/, '').trim();
+    }
+
     const noteMatch = content.match(/\nNote:([\s\S]*)$/i);
     if (noteMatch) {
         notes = noteMatch[1].trim();
         content = content.replace(/\nNote:[\s\S]*$/i, '').trim();
     }
 
-    // 3. Handle Tertiary Heading (H3+) Inheritance
-    // Prepend the secondary title (H2) for context
     if (parentTitle && content.startsWith('###')) {
         content = content.replace(/^(###+)\s+(.+)$/m, (match, prefix, title) => {
             if (!title.startsWith(parentTitle)) {
@@ -116,49 +214,27 @@ function parseSlide(text: string, parentTitle: string = ''): SlideContent {
         });
     }
 
-    return {
-        type: 'slide',
-        content,
-        notes,
-        alignment
-    };
+    return { type: 'slide', content, notes, alignment, transition };
 }
 
-/**
- * Process custom media syntax before parsing
- * Handles:
- * - Images with size: ![alt](url =WxH) -> <img ... style="width: W; height: H" />
- */
 function processMediaSyntax(text: string): string {
-    // Regex for: ![alt](url =widthxheight) or =widthx or =xheight
-    // Matches: ![...](... =100x200) or =100pxx200px etc.
-    // The optional size part starts with a space and equals sign.
     const imageRegex = /!\[(.*?)\]\((.*?)\s+=(.*?)\)/g;
-
     return text.replace(imageRegex, (_, alt, url, size) => {
         let width = '';
         let height = '';
         const parts = size.toLowerCase().split('x');
-
         if (parts.length >= 1 && parts[0]) width = parts[0];
         if (parts.length >= 2 && parts[1]) height = parts[1];
-
         const style = [
             width ? `width: ${width}${width.match(/\d$/) ? 'px' : ''}` : '',
             height ? `height: ${height}${height.match(/\d$/) ? 'px' : ''}` : ''
         ].filter(Boolean).join('; ');
-
         return `<img src="${url.trim()}" alt="${alt}" style="${style}" />`;
     });
 }
 
-/**
- * Automatically splits extremely long slides into multiple slides (subslides)
- * if they exceed character or line limits.
- */
 function autoSplitIfLong(slide: SlideContent, startLine: number): SlideContent[] {
     const lines = slide.content.split('\n');
-
     if (slide.content.length <= AUTO_SPLIT_CHAR_LIMIT && lines.length <= AUTO_SPLIT_LINE_LIMIT) {
         return [slide];
     }
@@ -166,26 +242,25 @@ function autoSplitIfLong(slide: SlideContent, startLine: number): SlideContent[]
     const sections: string[] = [];
     let currentChunk: string[] = [];
     let currentCharCount = 0;
+    let inCodeBlock = false;
 
     lines.forEach((line) => {
-        if ((currentCharCount > AUTO_SPLIT_CHAR_LIMIT * 0.7 && line.startsWith('#')) ||
-            (currentChunk.length >= AUTO_SPLIT_LINE_LIMIT)) {
-
-            if (currentChunk.length > 0) {
-                sections.push(currentChunk.join('\n'));
-                currentChunk = [];
-                currentCharCount = 0;
-            }
+        if (line.trim().startsWith('```')) inCodeBlock = !inCodeBlock;
+        const shouldSplit = !inCodeBlock && (
+            (currentCharCount > AUTO_SPLIT_CHAR_LIMIT * 0.8 && line.startsWith('#')) ||
+            (currentChunk.length >= AUTO_SPLIT_LINE_LIMIT)
+        );
+        if (shouldSplit && currentChunk.length > 0) {
+            sections.push(currentChunk.join('\n'));
+            currentChunk = [];
+            currentCharCount = 0;
         }
         currentChunk.push(line);
         currentCharCount += line.length + 1;
     });
 
-    if (currentChunk.length > 0) {
-        sections.push(currentChunk.join('\n'));
-    }
+    if (currentChunk.length > 0) sections.push(currentChunk.join('\n'));
 
-    // Capture the first header for context in continuations
     const headerMatch = slide.content.match(/^(#+)\s+(.+)$/m);
     const baseTitle = headerMatch ? headerMatch[2] : 'Continued';
     const headerLevel = headerMatch ? headerMatch[1] : '##';
@@ -194,10 +269,9 @@ function autoSplitIfLong(slide: SlideContent, startLine: number): SlideContent[]
         const sectLines = sect.split('\n');
         const sRange: [number, number] = [startLine, startLine + sectLines.length - 1];
         startLine += sectLines.length;
-
         return {
             ...slide,
-            content: idx > 0 ? `${headerLevel} ${baseTitle} (Part ${idx + 1} from above)\n\n${sect}` : sect,
+            content: idx > 0 ? `${headerLevel} ${baseTitle} (Part ${idx + 1})\n\n${sect}` : sect,
             notes: idx === 0 ? slide.notes : '',
             sourceLineRange: sRange
         };
@@ -219,7 +293,6 @@ function renderSlideHtml(slide: SlideContent): string {
     return `<section data-markdown ${alignStyle}>
 <textarea data-template>
 ${slide.content}
-
 ${slide.notes ? `\nNote:\n${slide.notes}` : ''}
 </textarea>
 </section>`;

@@ -65,7 +65,8 @@ const App: React.FC = () => {
     const [editorTitle, setEditorTitle] = React.useState('');
     const [editorTheme, setEditorTheme] = React.useState('black');
     const [editorGlobalAlignment, setEditorGlobalAlignment] = React.useState<'center' | 'left'>('center');
-    const [editorFontFamily, setEditorFontFamily] = React.useState('Outfit');
+    const [editorFontFamily, setEditorFontFamily] = React.useState('Tahoma');
+    const [editorTransition, setEditorTransition] = React.useState('none');
 
     // Initialize from URL on mount
     React.useEffect(() => {
@@ -80,6 +81,7 @@ const App: React.FC = () => {
                 setEditorTheme(p.theme);
                 setEditorGlobalAlignment(p.globalAlignment || 'center');
                 setEditorFontFamily(p.fontFamily || 'Outfit');
+                setEditorTransition(p.globalTransition || 'none');
                 setView('editor');
                 document.title = `${p.title} - Edit | Presentify`;
             } else {
@@ -95,7 +97,8 @@ const App: React.FC = () => {
                 setEditorTitle(p.title);
                 setEditorTheme(p.theme);
                 setEditorGlobalAlignment(p.globalAlignment || 'center');
-                setEditorFontFamily(p.fontFamily || 'Outfit');
+                setEditorFontFamily(p.fontFamily || 'Tahoma');
+                setEditorTransition(p.globalTransition || 'none');
                 setStartIndices([pathInfo.slideH || 0, pathInfo.slideV || 0]);
                 setIsPresenting(true);
                 setView('present');
@@ -119,7 +122,8 @@ const App: React.FC = () => {
                     setEditorTitle(p.title);
                     setEditorTheme(p.theme);
                     setEditorGlobalAlignment(p.globalAlignment || 'center');
-                    setEditorFontFamily(p.fontFamily || 'Outfit');
+                    setEditorFontFamily(p.fontFamily || 'Tahoma');
+                    setEditorTransition(p.globalTransition || 'none');;
                     setIsPresenting(false);
                     setView('editor');
                 }
@@ -156,7 +160,8 @@ const App: React.FC = () => {
         setEditorTitle(newPresentation.title);
         setEditorTheme(newPresentation.theme);
         setEditorGlobalAlignment(newPresentation.globalAlignment || 'center');
-        setEditorFontFamily(newPresentation.fontFamily || 'Outfit');
+        setEditorFontFamily(newPresentation.fontFamily || 'Tahoma');
+        setEditorTransition(newPresentation.globalTransition || 'none');
         setView('editor');
         updateUrl('editor', newId, newPresentation.title);
     };
@@ -169,7 +174,8 @@ const App: React.FC = () => {
             setEditorTitle(p.title);
             setEditorTheme(p.theme);
             setEditorGlobalAlignment(p.globalAlignment || 'center');
-            setEditorFontFamily(p.fontFamily || 'Outfit');
+            setEditorFontFamily(p.fontFamily || 'Tahoma');
+            setEditorTransition(p.globalTransition || 'none');;
             setView('editor');
             updateUrl('editor', id, p.title);
         }
@@ -180,7 +186,8 @@ const App: React.FC = () => {
         setEditorTitle(p.title);
         setEditorTheme(p.theme);
         setEditorGlobalAlignment(p.globalAlignment || 'center');
-        setEditorFontFamily(p.fontFamily || 'Outfit');
+        setEditorFontFamily(p.fontFamily || 'Tahoma');
+        setEditorTransition(p.globalTransition || 'none');
         storage.savePresentation(p);
         // Update URL with new title
         updateUrl('editor', p.id, p.title);
@@ -219,7 +226,8 @@ const App: React.FC = () => {
             setEditorTitle(p.title);
             setEditorTheme(p.theme);
             setEditorGlobalAlignment(p.globalAlignment || 'center');
-            setEditorFontFamily(p.fontFamily || 'Outfit');
+            setEditorFontFamily(p.fontFamily || 'Tahoma');
+            setEditorTransition(p.globalTransition || 'none');
             setIsPresenting(true);
             setView('present');
             updateUrl('present', id, p.title);
@@ -264,6 +272,7 @@ const App: React.FC = () => {
                                 theme: editorTheme,
                                 globalAlignment: editorGlobalAlignment,
                                 fontFamily: editorFontFamily,
+                                globalTransition: editorTransition,
                                 createdAt: Date.now(),
                                 updatedAt: Date.now()
                             }}
@@ -290,6 +299,7 @@ const App: React.FC = () => {
                             fontFamily={editorFontFamily}
                             onClose={handleExitPresent}
                             initialIndices={startIndices}
+                            globalTransition={editorTransition}
                         />
                     </motion.div>
                 )}
