@@ -108,38 +108,112 @@ function applyFragments(content: string, type: string): string {
 
     let inCodeBlock = false;
     let inMathBlock = false;
+    let inTableBlock = false;
+    let inQuoteBlock = false;
+
+    let pendingCodeBlockFragment = false;
+    let pendingMathBlockFragment = false;
+    // We don't need pending flags for tables/quotes because we just append the comment after the block
+
     const result: string[] = [];
 
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
         const trimmed = line.trim();
 
-        // 1. Handle Code Blocks - fragment on opening line
+        // 1. Handle Code Blocks
         if (trimmed.startsWith('```')) {
-            inCodeBlock = !inCodeBlock;
-            if (inCodeBlock && !line.includes('.element')) {
-                result.push(`${line} <!-- .element: class="${fragmentClass}" -->`);
-            } else {
+            if (inTableBlock) { inTableBlock = false; result.push(`<!-- .element: class="${fragmentClass}" -->`); }
+            if (inQuoteBlock) { inQuoteBlock = false; result.push(`<!-- .element: class="${fragmentClass}" -->`); }
+
+            if (!inCodeBlock) {
+                inCodeBlock = true;
+                pendingCodeBlockFragment = !line.includes('.element');
                 result.push(line);
+            } else {
+                inCodeBlock = false;
+                result.push(line);
+                if (pendingCodeBlockFragment) {
+                    result.push(`<!-- .element: class="${fragmentClass}" -->`);
+                    pendingCodeBlockFragment = false;
+                }
             }
             continue;
         }
 
-        // 2. Handle Multi-line Math Blocks ($$) - fragment on opening line
-        if (trimmed.startsWith('$$') && !trimmed.endsWith('$$')) {
-            inMathBlock = !inMathBlock;
-            if (inMathBlock && !line.includes('.element')) {
-                result.push(`${line} <!-- .element: class="${fragmentClass}" -->`);
+        if (inCodeBlock) {
+            result.push(line);
+            continue;
+        }
+
+        // 2. Handle Multi-line Math Blocks ($$)
+        if (trimmed.startsWith('$$')) {
+            if (inTableBlock) { inTableBlock = false; result.push(`<!-- .element: class="${fragmentClass}" -->`); }
+            if (inQuoteBlock) { inQuoteBlock = false; result.push(`<!-- .element: class="${fragmentClass}" -->`); }
+
+            if (!inMathBlock && !trimmed.endsWith('$$')) {
+                inMathBlock = true;
+                pendingMathBlockFragment = !line.includes('.element');
+                result.push(line);
+            } else if (inMathBlock) {
+                inMathBlock = false;
+                result.push(line);
+                if (pendingMathBlockFragment) {
+                    result.push(`<!-- .element: class="${fragmentClass}" -->`);
+                    pendingMathBlockFragment = false;
+                }
             } else {
                 result.push(line);
+                result.push(`<!-- .element: class="${fragmentClass}" -->`);
             }
             continue;
         }
 
-        // 3. Skip conditions (inside blocks or special lines)
+        if (inMathBlock) {
+            result.push(line);
+            continue;
+        }
+
+        // 3. Handle Tables (lines starting with |)
+        if (trimmed.startsWith('|')) {
+            if (inQuoteBlock) { inQuoteBlock = false; result.push(`<!-- .element: class="${fragmentClass}" -->`); }
+
+            if (!inTableBlock) {
+                inTableBlock = true;
+            }
+            result.push(line);
+            // Look ahead: if next line doesn't start with |, close the block
+            const nextLine = lines[i + 1]?.trim();
+            if (!nextLine || !nextLine.startsWith('|')) {
+                inTableBlock = false;
+                if (!line.includes('.element')) {
+                    result.push(`<!-- .element: class="${fragmentClass}" -->`);
+                }
+            }
+            continue;
+        }
+
+        // 4. Handle Blockquotes (lines starting with >)
+        if (trimmed.startsWith('>')) {
+            if (inTableBlock) { inTableBlock = false; result.push(`<!-- .element: class="${fragmentClass}" -->`); }
+
+            if (!inQuoteBlock) {
+                inQuoteBlock = true;
+            }
+            result.push(line);
+            // Look ahead
+            const nextLine = lines[i + 1]?.trim();
+            if (!nextLine || !nextLine.startsWith('>')) {
+                inQuoteBlock = false;
+                if (!line.includes('.element')) {
+                    result.push(`<!-- .element: class="${fragmentClass}" -->`);
+                }
+            }
+            continue;
+        }
+
+        // 5. Skip conditions / Empty lines
         if (
-            inCodeBlock ||
-            inMathBlock ||
             !trimmed ||
             trimmed.startsWith('#') ||
             trimmed === '---' ||
@@ -149,32 +223,35 @@ function applyFragments(content: string, type: string): string {
             line.includes('.element') ||
             line.includes(`class="${fragmentClass}"`)
         ) {
+            if (inTableBlock) { inTableBlock = false; result.push(`<!-- .element: class="${fragmentClass}" -->`); }
+            if (inQuoteBlock) { inQuoteBlock = false; result.push(`<!-- .element: class="${fragmentClass}" -->`); }
+
             result.push(line);
             continue;
         }
 
-        // 4. Handle List Items - wrap content in fragment span
-        // This directly applies the class without relying on sibling resolution
+        // 6. Handle List Items
         const listMatch = line.match(/^(\s*)([-*+]|\d+\.)\s+/);
         if (listMatch) {
+            if (inTableBlock) { inTableBlock = false; result.push(`<!-- .element: class="${fragmentClass}" -->`); }
+            if (inQuoteBlock) { inQuoteBlock = false; result.push(`<!-- .element: class="${fragmentClass}" -->`); }
+
             const prefix = listMatch[0];
             const itemContent = line.substring(prefix.length);
 
-            // Task lists need special handling to preserve checkbox parsing
             if (itemContent.trim().match(/^\[[ xX]\]/)) {
                 result.push(`${line} <!-- .element: class="${fragmentClass}" -->`);
                 continue;
             }
 
-            // Wrap content in span with fragment class
             result.push(`${prefix}<span class="${fragmentClass}">${itemContent}</span>`);
             continue;
         }
 
-        // 5. Regular paragraph content
-        // Add comment on its OWN LINE after the content
-        // This makes the comment a sibling of <p>, so the class applies to the paragraph
-        // rather than the last inline element inside it
+        // 7. Regular paragraph content
+        if (inTableBlock) { inTableBlock = false; result.push(`<!-- .element: class="${fragmentClass}" -->`); }
+        if (inQuoteBlock) { inQuoteBlock = false; result.push(`<!-- .element: class="${fragmentClass}" -->`); }
+
         result.push(line);
         result.push(`<!-- .element: class="${fragmentClass}" -->`);
     }

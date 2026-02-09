@@ -36,239 +36,229 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
     const slides = React.useMemo(() => parseMarkdownToSlides(markdown, globalTransition), [markdown, globalTransition]);
 
     React.useEffect(() => {
-        // Dynamically load theme CSS
         const linkId = 'reveal-theme';
         const customStyleId = 'reveal-custom-theme';
-        const existingLink = document.getElementById(linkId);
-        if (existingLink) existingLink.remove();
-        const existingStyle = document.getElementById(customStyleId);
-        if (existingStyle) existingStyle.remove();
 
-        // 1. Determine base Reveal theme from config
+        // Cleanup existing styles
+        [linkId, customStyleId].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.remove();
+        });
+
         const themeConfig = getTheme(theme);
         const baseTheme = themeConfig.baseTheme || 'black';
 
+        // 1. Load Base Theme
         const link = document.createElement('link');
         link.rel = 'stylesheet';
         link.href = `https://cdn.jsdelivr.net/npm/reveal.js/dist/theme/${baseTheme}.css`;
         link.id = linkId;
         document.head.appendChild(link);
 
-        // 2. Apply Immersive Custom Overrides for ALL Themes
+        // 2. Custom Overrides
         const style = document.createElement('style');
         style.id = customStyleId;
 
-        // Base styles with crisp rendering
-        let customCss = `
-		/* 1. MATCH THE PREVIEW CONTAINER */
-		.reveal-viewport { 
-			background: ${themeConfig.background} !important;
-			display: flex !important;
-			align-items: center !important;
-			justify-content: center !important;
-		}
+        const customCss = `
+            /* 1. VIEWPORT & LAYOUT */
+            .reveal-viewport { 
+                background: ${themeConfig.background} !important;
+            }
+        
+            /* 2. TYPOGRAPHY */
+            .reveal h1, .reveal h2 {
+                font-family: '${fontFamily}', sans-serif !important;
+                font-weight: 800 !important;
+                text-transform: none !important;
+                margin-bottom: 0.5em !important;
+                color: ${themeConfig.headingColor} !important;
+                ${themeConfig.headingGradient ? `
+                    background: ${themeConfig.headingGradient} !important;
+                    -webkit-background-clip: text !important;
+                    -webkit-text-fill-color: transparent !important;
+                    background-clip: text !important;
+                    display: block; 
+                ` : ''}
+                ${themeConfig.textShadow ? `text-shadow: ${themeConfig.textShadow} !important;` : 'text-shadow: none !important;'}
+            }
+        
+            .reveal h3, .reveal p, .reveal li, .reveal blockquote {
+                color: ${themeConfig.textColor} !important;
+                font-family: '${fontFamily}', sans-serif !important;
+                line-height: 1.6 !important;
+            }
+        
+            /* 3. ALIGNMENT HELPERS */
+            .reveal .slides section.left-align h1,
+            .reveal .slides section.left-align h2,
+            .reveal .slides section.left-align h3,
+            .reveal .slides section.left-align p,
+            .reveal .slides section.left-align ul,
+            .reveal .slides section.left-align ol {
+                text-align: left !important;
+                align-self: flex-start !important;
+                width: 100%;
+            }
+        
+            .reveal .slides section.left-align blockquote {
+                text-align: left !important;
+                margin-left: 0 !important;
+                padding-left: 1em !important;
+                width: 100% !important;
+                box-shadow: none !important;
+            }
+        
+            /* 4. FRAGMENT GHOST BULLET FIX */
+            .reveal li.fragment:not(.visible) {
+                visibility: hidden !important;
+            }
+            .reveal li:has(.fragment:not(.visible)) {
+                list-style-type: none !important;
+            }
+            .reveal li:has(.fragment:not(.visible))::marker {
+                color: transparent !important;
+                content: "" !important;
+            }
 
-		/* 2. MATCH THE TYPOGRAPHY LOGIC */
-		.reveal h1, .reveal h2 {
-			font-family: '${fontFamily}', sans-serif !important;
-			font-weight: 800 !important;
-			text-transform: none !important;
-			margin-bottom: 0.5em !important;
-			
-			/* This matches your preview's 'headingClass' logic */
-			color: ${themeConfig.headingColor} !important;
-			
-			${themeConfig.headingGradient ? `
-				background: ${themeConfig.headingGradient} !important;
-				-webkit-background-clip: text !important;
-				-webkit-text-fill-color: transparent !important;
-				background-clip: text !important;
-				display: block; 
-			` : ''}
+            /* 5. MERMAID FIX & ALIGNMENT */
+            .reveal div.mermaid {
+                background: transparent !important;
+                border: none !important;
+                box-shadow: none !important;
+                display: flex !important;
+                width: 100% !important;
+                /* Default Center */
+                justify-content: center !important; 
+                align-items: center !important;
+            }
 
-			${themeConfig.textShadow ? `text-shadow: ${themeConfig.textShadow} !important;` : 'text-shadow: none !important;'}
-		}
-
-		/* 3. MATCH THE BODY TEXT */
-		.reveal h3, .reveal p, .reveal li, .reveal blockquote {
-			color: ${themeConfig.textColor} !important;
-			font-family: '${fontFamily}', sans-serif !important;
-			line-height: 1.6 !important;
-		}
-
-		/* 4. REMOVE REVEAL.JS DEFAULT OVERLAYS */
-		.reveal .slides section {
-			background: transparent !important;
-			border: none !important;
-			box-shadow: none !important;
-		}
-
-		/* Ensure headers and lists inside left-aligned slides also move left */
-		.reveal .slides section.left-align h1,
-		.reveal .slides section.left-align h2,
-		.reveal .slides section.left-align h3,
-		.reveal .slides section.left-align p,
-		.reveal .slides section.left-align ul,
-		.reveal .slides section.left-align ol {
-			text-align: left !important;
-			/* If using flex layout for centering, this pushes content to the start */
-			align-self: flex-start !important;
-			width: 100%;
-		}
-
-		/* SPECIFIC BLOCKQUOTE FIX */
-		.reveal .slides section.left-align blockquote {
-			text-align: left !important;
-			margin-left: 0 !important;      /* Overrides reveal.js default 'auto' margin */
-			margin-right: auto !important;  /* Keeps it from stretching if not desired */
-			padding-left: 1em !important;   /* Keeps a nice gap for the border/quote line */
-			width: 100% !important;         /* Allows text to utilize full width */
-			box-shadow: none !important;    /* Optional: cleaner look */
-		}
-	
-		/* Ensure list items are also left-justified within their container */
-		.reveal .slides section.left-align li {
-			text-align: left !important;
-			list-style-position: inside;   /* Optional: ensures bullets don't hang off edge */
-		}
-
-		/* FRAGMENT LIST ITEMS: Hide bullet until fragment is visible */
-		/* When a list item contains a fragment span that's not yet visible, hide the entire item */
-		.reveal li:has(> span.fragment:not(.visible)) {
-			list-style-type: none !important;
-		}
-		/* Also hide the bullet marker using ::marker pseudo-element for broader support */
-		.reveal li:has(> span.fragment:not(.visible))::marker {
-			color: transparent !important;
-			font-size: 0 !important;
-		}
-		
-		${themeConfig.customCss || ''}
-	`;
-
+            /* Mermaid Left Alignment Override */
+            .reveal .slides section.left-align div.mermaid {
+                justify-content: flex-start !important;
+            }
+            
+            /* Ensure SVG scales nicely but respects container */
+            .reveal div.mermaid svg {
+                max-width: 100% !important;
+                max-height: 80vh !important;
+                height: auto !important;
+            }
+        
+            ${themeConfig.customCss || ''}
+        `;
 
         style.appendChild(document.createTextNode(customCss));
         document.head.appendChild(style);
 
-        // 3. Initialize Mermaid
+        // --- MERMAID CONFIGURATION ---
+        try {
+            mermaid.mermaidAPI.reset();
+        } catch (e) { }
+
         const mermaidTheme = themeConfig.baseTheme === 'white' ? 'default' : 'dark';
-        mermaid.initialize({ startOnLoad: false, theme: mermaidTheme });
+
+        mermaid.initialize({
+            startOnLoad: false,
+            theme: mermaidTheme,
+            securityLevel: 'loose',
+            fontFamily: fontFamily
+        });
 
         const MermaidPlugin = {
             id: 'mermaid',
             init: (deck: any) => {
-                const initAllSlides = () => {
-                    const revealEl = deck.getRevealElement();
-                    const codeBlocks = revealEl.querySelectorAll('pre code.language-mermaid, pre code.mermaid');
-                    codeBlocks.forEach((block: HTMLElement) => {
-                        const pre = block.parentElement;
-                        if (pre && pre.tagName === 'PRE') {
-                            const div = document.createElement('div');
-                            div.className = 'mermaid';
-                            div.setAttribute('data-rendered', 'false');
+                const renderedNodes = new Set<HTMLElement>();
 
-                            // Check for size directive: %% size: 50% or %% size: 1.5x
-                            let content = block.textContent || '';
-                            const sizeMatch = content.match(/^\s*%% ?size:\s*([^\n\r]+)/m);
-                            if (sizeMatch) {
-                                const sizeVal = sizeMatch[1].trim();
-                                if (sizeVal.toLowerCase().endsWith('x')) {
-                                    div.setAttribute('data-scale', sizeVal.slice(0, -1));
-                                } else {
-                                    div.style.width = sizeVal;
-                                    div.style.maxWidth = 'none';
-                                }
-                                div.style.margin = '0 auto';
-                                div.style.display = 'block';
-                                // Remove the directive line
-                                content = content.replace(/^\s*%% ?size:\s*[^\n\r]+(\r\n|\n|\r)?/, '');
-                            } else {
-                                div.style.width = '100%';
-                                div.style.textAlign = 'center';
-                            }
-
-                            div.textContent = content;
-                            pre.replaceWith(div);
-                        }
-                    });
-                };
-
-                const renderVisibleSlides = async () => {
-                    const slide = deck.getCurrentSlide();
-                    if (!slide) return;
-                    const nodes = Array.from(slide.querySelectorAll('.mermaid[data-rendered="false"]')) as HTMLElement[];
+                const renderMermaid = async (nodes: HTMLElement[]) => {
                     if (nodes.length > 0) {
-                        nodes.forEach(n => n.setAttribute('data-rendered', 'processing'));
                         try {
                             await mermaid.run({ nodes });
-                            nodes.forEach(n => {
-                                const svg = n.querySelector('svg');
-                                if (svg) {
-                                    svg.style.maxWidth = 'none';
-                                    const scale = n.getAttribute('data-scale');
-                                    if (scale) {
-                                        svg.style.transform = `scale(${scale})`;
-                                        svg.style.transformOrigin = 'center top';
-                                    } else {
-                                        svg.style.width = '100%';
-                                        svg.style.height = 'auto';
-                                    }
-                                }
-                                n.setAttribute('data-rendered', 'true');
-                            });
-                        } catch (err) {
-                            console.error('Mermaid error', err);
-                            nodes.forEach(n => n.setAttribute('data-rendered', 'error'));
+                            deck.layout();
+                        } catch (error) {
+                            console.error("Mermaid rendering failed:", error);
                         }
                     }
                 };
 
-                deck.on('ready', () => {
-                    initAllSlides();
-                    renderVisibleSlides();
+                deck.on('ready', async () => {
+                    const revealEl = deck.getRevealElement();
+                    const codeBlocks = revealEl.querySelectorAll('pre code.language-mermaid, pre code.mermaid');
+
+                    const allNodes: HTMLElement[] = [];
+
+                    codeBlocks.forEach((block: HTMLElement) => {
+                        const pre = block.parentElement;
+                        if (pre && pre.tagName === 'PRE') {
+                            const div = document.createElement('div');
+                            // Copy classes (including fragments) and index attributes
+                            div.className = `mermaid ${pre.className}`;
+
+                            // Transfer all other attributes (data-fragment-index, etc.)
+                            Array.from(pre.attributes).forEach(attr => {
+                                if (attr.name !== 'class') {
+                                    div.setAttribute(attr.name, attr.value);
+                                }
+                            });
+
+                            div.setAttribute('data-mermaid-src', block.textContent || '');
+                            div.textContent = block.textContent;
+                            pre.replaceWith(div);
+                            allNodes.push(div);
+                        }
+                    });
+
+                    // Update Reveal.js to recognize new fragments
+                    if (allNodes.length > 0) {
+                        deck.sync();
+                    }
+
+                    // Initial render for everything
+                    await renderMermaid(allNodes);
+
+                    // Mark nodes in the current slide as visibly rendered
+                    const currentSlide = deck.getCurrentSlide();
+                    if (currentSlide) {
+                        const currentMermaids = currentSlide.querySelectorAll('.mermaid');
+                        currentMermaids.forEach((n: any) => renderedNodes.add(n as HTMLElement));
+                    }
                 });
 
-                deck.on('slidechanged', () => {
-                    renderVisibleSlides();
+                deck.on('slidechanged', async (event: any) => {
+                    const currentSlide = event.currentSlide;
+                    const mermaidNodes = currentSlide.querySelectorAll('.mermaid');
+                    const nodesToFix: HTMLElement[] = [];
+
+                    mermaidNodes.forEach((node: any) => {
+                        const htmlNode = node as HTMLElement;
+                        if (!renderedNodes.has(htmlNode)) {
+                            const src = htmlNode.getAttribute('data-mermaid-src');
+                            if (src) {
+                                htmlNode.textContent = src;
+                                htmlNode.removeAttribute('data-processed');
+                                nodesToFix.push(htmlNode);
+                                renderedNodes.add(htmlNode);
+                            }
+                        }
+                    });
+
+                    if (nodesToFix.length > 0) {
+                        await renderMermaid(nodesToFix);
+                    }
                 });
             }
         };
 
         if (deckRef.current) {
-            if (revealInstance.current) {
-                try {
-                    revealInstance.current.destroy();
-                } catch (e) {
-                    console.error("Error destroying reveal instance", e);
-                }
-            }
-
             const deck = new Reveal(deckRef.current, {
                 plugins: [Markdown, Notes, Math.KaTeX, MermaidPlugin as any],
                 width: 1920,
                 height: 1080,
-                margin: 0.08,
-                minScale: 0.2,
-                maxScale: 1.5,
-                embedded: false,
+                margin: 0.1,
+                center: globalAlignment === 'center',
+                transition: globalTransition === 'none' ? 'none' : 'slide',
                 hash: true,
-                mouseWheel: true,
-                transition: 'slide',
-                backgroundTransition: 'fade',
                 markdown: {
                     notesSeparator: 'Note:'
-                },
-                center: globalAlignment === 'center',
-                fragments: true,
-                katex: {
-                    version: 'latest',
-                    delimiters: [
-                        { left: '$$', right: '$$', display: true },
-                        { left: '$', right: '$', display: false },
-                        { left: '\\(', right: '\\)', display: false },
-                        { left: '\\[', right: '\\]', display: true }
-                    ],
-                    ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
                 }
             });
 
@@ -276,27 +266,21 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
                 if (initialIndices) {
                     deck.slide(initialIndices[0], initialIndices[1]);
                 }
-                deck.layout();
             });
 
             revealInstance.current = deck;
         }
 
         return () => {
-            const linkToRemove = document.getElementById(linkId);
-            if (linkToRemove) linkToRemove.remove();
-            const styleToRemove = document.getElementById(customStyleId);
-            if (styleToRemove) styleToRemove.remove();
+            [linkId, customStyleId].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.remove();
+            });
+            if (revealInstance.current) {
+                try { revealInstance.current.destroy(); } catch (e) { }
+            }
         };
     }, [theme, globalAlignment, fontFamily, globalTransition, markdown]);
-
-    React.useEffect(() => {
-        const handleEsc = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') onClose();
-        };
-        window.addEventListener('keydown', handleEsc);
-        return () => window.removeEventListener('keydown', handleEsc);
-    }, [onClose]);
 
     return (
         <motion.div
@@ -306,19 +290,9 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
             className="fixed inset-0 z-100 bg-black"
             style={{ background: getTheme(theme).background }}
         >
-            <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-                {getTheme(theme).bgEffectClass && (
-                    <div className={getTheme(theme).bgEffectClass} />
-                )}
-                {getTheme(theme).bgEffectClass2 && (
-                    <div className={getTheme(theme).bgEffectClass2} />
-                )}
-            </div>
-
             <button
                 onClick={onClose}
-                className="fixed top-6 right-6 z-110 w-12 h-12 flex items-center justify-center bg-black/50 hover:bg-black/70 backdrop-blur-xl border border-white/10 rounded-xl text-white/70 hover:text-white transition-all hover:scale-105 active:scale-95"
-                title="Exit (ESC)"
+                className="fixed top-6 right-6 z-110 w-12 h-12 flex items-center justify-center bg-black/50 hover:bg-black/70 backdrop-blur-xl border border-white/10 rounded-xl text-white/70 hover:text-white transition-all"
             >
                 <X size={24} />
             </button>
@@ -326,39 +300,27 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
             <div className="reveal h-full w-full z-10" ref={deckRef}>
                 <div className="slides">
                     {slides.map((slide, index) => (
-                        slide.type === 'vertical' && slide.subSlides ? (
-                            <section key={index}>
-                                {slide.subSlides.map((sub, subIdx) => {
-                                    // Check if either this specific sub-slide or the global setting is left
-                                    const isLeft = sub.alignment === 'left' || globalAlignment === 'left';
-                                    return (
-                                        <section
-                                            key={`${index}-${subIdx}-${globalTransition}`}
-                                            data-markdown=""
-                                            // Apply the helper class here
-                                            className={isLeft ? 'left-align' : ''}
-                                        >
-                                            <textarea
-                                                data-template
-                                                defaultValue={`${sub.content}${sub.notes ? `\n\nNote:\n${sub.notes}` : ''}`}
-                                            />
-                                        </section>
-                                    );
-                                })}
-                            </section>
-                        ) : (
-                            <section
-                                key={`${index}-${globalTransition}`}
-                                data-markdown=""
-                                // Apply the helper class here
-                                className={(slide.alignment === 'left' || globalAlignment === 'left') ? 'left-align' : ''}
-                            >
-                                <textarea
-                                    data-template
-                                    defaultValue={`${slide.content}${slide.notes ? `\n\nNote:\n${slide.notes}` : ''}`}
-                                />
-                            </section>
-                        )
+                        <section key={index}>
+                            {slide.type === 'vertical' && slide.subSlides ? (
+                                slide.subSlides.map((sub, subIdx) => (
+                                    <section
+                                        key={`${index}-${subIdx}`}
+                                        data-markdown=""
+                                        className={(sub.alignment === 'left' || globalAlignment === 'left') ? 'left-align' : ''}
+                                    >
+                                        <textarea data-template defaultValue={sub.content} />
+                                    </section>
+                                ))
+                            ) : (
+                                <section
+                                    key={index}
+                                    data-markdown=""
+                                    className={(slide.alignment === 'left' || globalAlignment === 'left') ? 'left-align' : ''}
+                                >
+                                    <textarea data-template defaultValue={slide.content} />
+                                </section>
+                            )}
+                        </section>
                     ))}
                 </div>
             </div>
