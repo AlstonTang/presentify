@@ -96,16 +96,23 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
             .reveal .slides section.left-align h3,
             .reveal .slides section.left-align p,
             .reveal .slides section.left-align ul,
-            .reveal .slides section.left-align ol {
+            .reveal .slides section.left-align ol,
+            .reveal .slides section.left-align table,
+            .reveal .slides section.left-align blockquote {
                 text-align: left !important;
                 align-self: flex-start !important;
                 width: 100%;
             }
+
+            .reveal .slides section.left-align table {
+                margin-left: 0 !important;
+                margin-right: auto !important;
+            }
         
             .reveal .slides section.left-align blockquote {
-                text-align: left !important;
                 margin-left: 0 !important;
-                padding-left: 1em !important;
+                padding-left: 1.5rem !important;
+                border-left: 4px solid rgba(255,255,255,0.2) !important;
                 width: 100% !important;
                 box-shadow: none !important;
             }
