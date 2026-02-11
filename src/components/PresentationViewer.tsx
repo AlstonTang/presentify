@@ -3,6 +3,7 @@ import Reveal from 'reveal.js';
 import Markdown from 'reveal.js/plugin/markdown/markdown.esm.js';
 import Notes from 'reveal.js/plugin/notes/notes.esm.js';
 import Math from 'reveal.js/plugin/math/math.esm.js';
+import Highlight from 'reveal.js/plugin/highlight/highlight.esm.js';
 import { parseMarkdownToSlides } from '../utils/markdownParser';
 import mermaid from 'mermaid';
 import { X } from 'lucide-react';
@@ -11,6 +12,7 @@ import { getTheme } from '../utils/themes';
 
 // Import reveal.js styles
 import 'reveal.js/dist/reveal.css';
+import 'reveal.js/plugin/highlight/monokai.css';
 
 interface PresentationViewerProps {
     markdown: string;
@@ -143,6 +145,117 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
                 max-height: 80vh !important;
                 height: auto !important;
             }
+
+            /* 6. CODE BLOCKS */
+            .reveal pre, .reveal .code-wrapper {
+                background: #1a1b26 !important;
+                border-radius: 16px !important;
+                padding: 0 !important; /* Padding moved to code element */
+                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+                width: 90% !important;
+                margin: 1.5em auto !important;
+                border: 1px solid rgba(255,255,255,0.08) !important;
+                overflow: hidden !important;
+                max-height: 800px !important;
+                display: grid !important; /* Essential for perfect stacking */
+                grid-template-areas: "stack" !important;
+                position: relative !important;
+            }
+
+            .reveal .slides section.left-align pre {
+                margin-left: 0 !important;
+                width: 100% !important;
+            }
+
+            .reveal pre code, .reveal .code-wrapper code {
+                grid-area: stack !important; /* Force overlap */
+                padding: 2em 2.5em !important; /* Internal padding */
+                font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace !important;
+                font-size: 0.75em !important;
+                line-height: 1.7 !important;
+                background: transparent !important;
+                border-radius: 8px !important;
+                position: relative !important; /* Stacked relative to grid */
+                box-sizing: border-box !important;
+                transition: opacity 0.4s ease, visibility 0.4s ease !important;
+                margin: 0 !important;
+                width: 100% !important;
+            }
+
+            /* Absolute reset for fragments if plugin added it */
+            .reveal pre code.fragment, .reveal .code-wrapper code.fragment {
+                position: relative !important; /* Override absolute to stick to grid */
+                top: auto !important;
+                left: auto !important;
+            }
+
+            /* Prevent ghosting: When any highlight fragment is active, hide everything else */
+            .reveal pre:has(code.fragment.visible) code:not(.current-fragment),
+            .reveal .code-wrapper:has(code.fragment.visible) code:not(.current-fragment) {
+                opacity: 0 !important;
+                visibility: hidden !important;
+                /* We don't use display: none to maintain layout sizing */
+            }
+
+            /* Fix stray '1' in nested tables */
+            .reveal table.hljs-ln tr:has(table.hljs-ln) > td.hljs-ln-numbers {
+                display: none !important;
+            }
+
+            /* Fix 'dim' code: Ensure non-focused lines are still very readable */
+            .reveal pre code.has-highlights tr:not(.highlight-line) {
+                opacity: 0.85 !important;
+                filter: none !important;
+            }
+
+            /* Inline Code */
+            .reveal :not(pre) > code {
+                background: rgba(255, 255, 255, 0.1) !important;
+                color: ${themeConfig.textColor} !important;
+                padding: 0.1em 0.3em !important;
+                border-radius: 6px !important;
+                font-family: 'JetBrains Mono', monospace !important;
+                font-size: 0.85em !important;
+                word-wrap: break-word !important;
+            }
+
+            /* Line Highlighting Support */
+            .reveal .hljs-ln-numbers {
+                -webkit-touch-callout: none;
+                -webkit-user-select: none;
+                -khtml-user-select: none;
+                -moz-user-select: none;
+                -ms-user-select: none;
+                user-select: none;
+                text-align: right;
+                color: #444;
+                vertical-align: top;
+                padding-right: 20px !important;
+                min-width: 35px;
+                border-right: 1px solid rgba(255,255,255,0.05) !important;
+            }
+
+            .reveal .hljs-ln-code {
+                padding-left: 15px !important;
+            }
+
+            /* Scrollbar Styling for Code */
+            .reveal pre::-webkit-scrollbar, .reveal .code-wrapper::-webkit-scrollbar {
+                width: 10px;
+                height: 10px;
+            }
+            .reveal pre::-webkit-scrollbar-track, .reveal .code-wrapper::-webkit-scrollbar-track {
+                background: rgba(0,0,0,0.1);
+                border-radius: 10px;
+            }
+            .reveal pre::-webkit-scrollbar-thumb, .reveal .code-wrapper::-webkit-scrollbar-thumb {
+                background: rgba(255,255,255,0.1);
+                border-radius: 10px;
+                border: 2px solid #1a1b26;
+            }
+            .reveal pre::-webkit-scrollbar-thumb:hover, .reveal .code-wrapper::-webkit-scrollbar-thumb:hover {
+                background: rgba(255,255,255,0.2);
+            }
         
             ${themeConfig.customCss || ''}
         `;
@@ -250,7 +363,7 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
 
         if (deckRef.current) {
             const deck = new Reveal(deckRef.current, {
-                plugins: [Markdown, Notes, Math.KaTeX, MermaidPlugin as any],
+                plugins: [Markdown, MermaidPlugin as any, Highlight, Notes, Math.KaTeX],
                 width: 1920,
                 height: 1080,
                 margin: 0.1,
@@ -259,7 +372,11 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
                 hash: true,
                 markdown: {
                     notesSeparator: 'Note:'
-                }
+                },
+                highlight: {
+                    highlightOnLoad: true,
+                    escapeHTML: false
+                } as any
             });
 
             deck.initialize().then(() => {
@@ -308,7 +425,7 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
                                         data-markdown=""
                                         className={(sub.alignment === 'left' || globalAlignment === 'left') ? 'left-align' : ''}
                                     >
-                                        <textarea data-template defaultValue={sub.content} />
+                                        <textarea data-template defaultValue={sub.content} key={sub.content} />
                                     </section>
                                 ))
                             ) : (
@@ -317,7 +434,7 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
                                     data-markdown=""
                                     className={(slide.alignment === 'left' || globalAlignment === 'left') ? 'left-align' : ''}
                                 >
-                                    <textarea data-template defaultValue={slide.content} />
+                                    <textarea data-template defaultValue={slide.content} key={slide.content} />
                                 </section>
                             )}
                         </section>
