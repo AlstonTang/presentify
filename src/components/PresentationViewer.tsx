@@ -416,7 +416,7 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
         >
             <button
                 onClick={onClose}
-                className="fixed top-6 right-6 z-110 w-12 h-12 flex items-center justify-center bg-black/50 hover:bg-black/70 backdrop-blur-xl border border-white/10 rounded-xl text-white/70 hover:text-white transition-all"
+                className="fixed top-6 right-6 z-110 w-12 h-12 flex items-center justify-center hover:bg-black/70 backdrop-blur-xl opacity-50 border border-white/10 rounded-xl text-white/70 hover:text-white transition-all"
             >
                 <X size={24} />
             </button>

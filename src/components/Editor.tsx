@@ -14,7 +14,7 @@ import {
     ChevronLeft,
     ChevronRight,
 } from 'lucide-react';
-import type { Presentation } from '../types';
+import { type Presentation, type SlideContent } from '../types';
 import { FontSelector } from './FontSelector';
 import { ThemeSelector } from './ThemeSelector';
 import { TransitionSelector } from './TransitionSelector';
@@ -23,6 +23,8 @@ import { parseMarkdownToSlides } from '../utils/markdownParser';
 import { storage } from '../utils/storage';
 import pptxgen from 'pptxgenjs';
 import { getTheme } from '../utils/themes';
+import katex from 'katex';
+import 'katex/dist/katex.min.css';
 
 interface EditorProps {
     presentation: Presentation;
@@ -37,7 +39,7 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
     const [theme, setTheme] = React.useState(presentation.theme || 'black');
     const [globalAlignment, setGlobalAlignment] = React.useState<'center' | 'left'>(presentation.globalAlignment || 'center');
     const [fontFamily, setFontFamily] = React.useState(presentation.fontFamily || 'Tahoma');
-	const [globalTransition, setGlobalTransition] = React.useState(presentation.globalTransition || 'none');
+    const [globalTransition, setGlobalTransition] = React.useState(presentation.globalTransition || 'none');
     const [showGuide, setShowGuide] = React.useState(false);
     const [showPreview, setShowPreview] = React.useState(true);
     const [isSaved, setIsSaved] = React.useState(false);
@@ -67,14 +69,14 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
     const slides = React.useMemo(() => {
         const parsed = parseMarkdownToSlides(markdown);
         // Flatten vertical slides for preview
-        const flat: { content: string; isSubSlide?: boolean }[] = [];
+        const flat: (SlideContent & { isSubSlide?: boolean })[] = [];
         parsed.forEach(slide => {
             if (slide.type === 'vertical' && slide.subSlides) {
                 slide.subSlides.forEach((sub, idx) => {
-                    flat.push({ content: sub.content, isSubSlide: idx > 0 });
+                    flat.push({ ...sub, isSubSlide: idx > 0 });
                 });
             } else {
-                flat.push({ content: slide.content });
+                flat.push(slide);
             }
         });
         return flat;
@@ -131,74 +133,394 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
     };
 
     const exportToPDF = () => {
-        // Open presentation in new window and trigger print
+        const themeConfig = getTheme(theme);
         const printWindow = window.open('', '_blank');
         if (!printWindow) return;
 
-        const slidesHtml = slides.map((slide) => `
-            <div class="slide" style="page-break-after: always; height: 100vh; display: flex; align-items: center; justify-content: center; padding: 40px; box-sizing: border-box;">
-                <div style="max-width: 800px; text-align: ${globalAlignment};">
-                    ${slide.content.split('\n').map(line => {
-            if (line.startsWith('# ')) return `<h1 style="font-size: 48px; margin-bottom: 20px;">${line.slice(2)}</h1>`;
-            if (line.startsWith('## ')) return `<h2 style="font-size: 36px; margin-bottom: 16px;">${line.slice(3)}</h2>`;
-            if (line.startsWith('### ')) return `<h3 style="font-size: 28px; margin-bottom: 12px;">${line.slice(4)}</h3>`;
-            if (line.startsWith('- ')) return `<li style="margin: 8px 0; font-size: 20px;">${line.slice(2)}</li>`;
-            if (line.trim()) return `<p style="font-size: 20px; line-height: 1.6;">${line}</p>`;
-            return '';
-        }).join('')}
+        const renderMarkdownToHtml = (content: string, slideAlignment: 'center' | 'left') => {
+            let html = content.trim();
+            const blocks: string[] = [];
+
+            // Helper to add block and return placeholder
+            const addBlock = (content: string) => {
+                const placeholder = `<!-- BLOCK_PLACEHOLDER_${blocks.length} -->`;
+                blocks.push(content);
+                return placeholder;
+            };
+
+            const applyInlineMarkdown = (text: string) => {
+                return text
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                    .replace(/`(.*?)`/g, '<code style="background: rgba(255,255,255,0.12); padding: 3px 8px; border-radius: 6px; font-family: monospace; font-size: 0.9em;">$1</code>')
+                    .replace(/\[(.*?)\]\((.*?)\)/g, `<a href="$2" style="color: ${themeConfig.headingColor}; text-decoration: underline;">$1</a>`)
+                    .replace(/\$([^$]+)\$/g, (_, math) => {
+                        try {
+                            return katex.renderToString(math, { throwOnError: false });
+                        } catch (e) {
+                            return math;
+                        }
+                    });
+            };
+
+            // 0. Extract Math Blocks ($$)
+            html = html.replace(/\$\$([\s\S]*?)\$\$/g, (_, math) => {
+                try {
+                    const rendered = katex.renderToString(math, { displayMode: true, throwOnError: false });
+                    return addBlock(`<div style="margin: 30px 0; font-size: 24px;">${rendered}</div>`);
+                } catch (e) {
+                    return addBlock(`<div style="margin: 30px 0;">${math}</div>`);
+                }
+            });
+
+            // 1. Extract Code Blocks (Handle Reveal.js highlights like [1-5|6-7])
+            html = html.replace(/```(\w*)(\s*\[.*?\])?\n([\s\S]*?)```/g, (_, _lang, _highlights, code) => {
+                return addBlock(`
+                    <div class="block-code" style="background: rgba(0,0,0,0.4); padding: 30px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); font-family: 'JetBrains Mono', monospace; font-size: 18px; margin: 30px 0; white-space: pre-wrap; text-align: left; color: #e0e0e0; box-shadow: 0 15px 40px rgba(0,0,0,0.5);">${code.trim()}</div>
+                `);
+            });
+
+            // 2. Extract Tables
+            const tableRegex = /^\|.*\|$\n^\|[- |]*\|$(?:\n^\|.*\|$)+/gm;
+            html = html.replace(tableRegex, (match) => {
+                const rows = match.trim().split('\n');
+                const headerRow = rows[0];
+                const bodyRows = rows.slice(2);
+
+                const parseRow = (row: string) => {
+                    const cells = [];
+                    let current = '';
+                    let depth = 0;
+                    for (let i = 0; i < row.length; i++) {
+                        if (row[i] === '[' || row[i] === '(') depth++;
+                        if (row[i] === ']' || row[i] === ')') depth--;
+                        if (row[i] === '|' && depth === 0) {
+                            cells.push(current);
+                            current = '';
+                        } else {
+                            current += row[i];
+                        }
+                    }
+                    cells.push(current);
+                    return cells
+                        .filter((_, i, arr) => i > 0 && i < arr.length - 1)
+                        .map(c => applyInlineMarkdown(c.trim()));
+                };
+
+                const headers = parseRow(headerRow);
+                const body = bodyRows.map(parseRow);
+
+                return addBlock(`
+                    <div style="width: 100%; overflow-x: auto; margin: 30px 0;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 20px; color: ${themeConfig.textColor};">
+                            <thead>
+                                <tr style="background: rgba(255,255,255,0.15);">
+                                    ${headers.map(h => `<th style="border: 1px solid rgba(255,255,255,0.2); padding: 18px 20px; text-align: left; font-weight: 800;">${h}</th>`).join('')}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${body.map(r => `<tr>${r.map(c => `<td style="border: 1px solid rgba(255,255,255,0.1); padding: 15px 20px;">${c}</td>`).join('')}</tr>`).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `);
+            });
+
+            // 3. Extract Images
+            html = html.replace(/!\[(.*?)\]\((.*?)\)/g, (_, alt, url) => {
+                return addBlock(`
+                    <div style="margin: 30px 0; text-align: ${slideAlignment}; width: 100%;">
+                        <img src="${url}" alt="${alt}" style="max-width: 100%; max-height: 55vh; border-radius: 16px; box-shadow: 0 15px 50px rgba(0,0,0,0.5);" />
+                    </div>
+                `);
+            });
+
+            // 4. Process lines
+            const lines = html.split('\n');
+            let resultHtml = '';
+            let inList = false;
+
+            lines.forEach(line => {
+                let processed = line.trim();
+
+                // Keep track of list state to wrap in <ul>
+                if (processed.startsWith('- ') || processed.startsWith('* ')) {
+                    if (!inList) {
+                        resultHtml += '<ul style="margin: 20px 0;">';
+                        inList = true;
+                    }
+                } else if (inList && processed !== '' && !processed.startsWith('<!-- BLOCK_PLACEHOLDER_')) {
+                    resultHtml += '</ul>';
+                    inList = false;
+                }
+
+                if (!processed) return;
+
+                // Headers
+                if (processed.startsWith('# ')) {
+                    resultHtml += `<h1 style="font-size: 72px; font-weight: 800; margin-bottom: 40px; ${themeConfig.headingGradient ? `background: ${themeConfig.headingGradient}; -webkit-background-clip: text; -webkit-text-fill-color: transparent;` : `color: ${themeConfig.headingColor};`} text-align: ${slideAlignment}; line-height: 1.1; letter-spacing: -0.02em;">${applyInlineMarkdown(processed.slice(2))}</h1>`;
+                    return;
+                }
+                if (processed.startsWith('## ')) {
+                    resultHtml += `<h2 style="font-size: 52px; font-weight: 700; margin-bottom: 30px; color: ${themeConfig.headingColor}; opacity: 0.9; text-align: ${slideAlignment}; letter-spacing: -0.01em;">${applyInlineMarkdown(processed.slice(3))}</h2>`;
+                    return;
+                }
+                if (processed.startsWith('### ')) {
+                    resultHtml += `<h3 style="font-size: 36px; font-weight: 600; margin-bottom: 25px; color: ${themeConfig.textColor}; text-align: ${slideAlignment};">${applyInlineMarkdown(processed.slice(4))}</h3>`;
+                    return;
+                }
+
+                // Placeholder check
+                if (processed.startsWith('<!-- BLOCK_PLACEHOLDER_')) {
+                    resultHtml += processed;
+                    return;
+                }
+
+                // List Items
+                if (processed.startsWith('- ') || processed.startsWith('* ')) {
+                    const content = applyInlineMarkdown(processed.slice(2));
+                    resultHtml += `<li style="margin: 15px 0; font-size: 30px; color: ${themeConfig.textColor}; text-align: ${slideAlignment}; list-style-position: inside; line-height: 1.5;">${content}</li>`;
+                    return;
+                }
+
+                // Blockquotes
+                if (processed.startsWith('> ')) {
+                    resultHtml += `<blockquote style="border-left: 8px solid ${themeConfig.headingColor}; padding: 20px 40px; margin: 40px 0; font-style: italic; background: rgba(255,255,255,0.05); color: ${themeConfig.textColor}; text-align: ${slideAlignment}; font-size: 28px; border-radius: 0 16px 16px 0;">${applyInlineMarkdown(processed.slice(2))}</blockquote>`;
+                    return;
+                }
+
+                if (processed.startsWith('Note:') || processed.startsWith('::')) return;
+
+                // Inline processing for regular paragraphs
+                resultHtml += `<p style="font-size: 30px; line-height: 1.6; margin-bottom: 25px; color: ${themeConfig.textColor}; text-align: ${slideAlignment};">${applyInlineMarkdown(processed)}</p>`;
+            });
+
+            if (inList) resultHtml += '</ul>';
+
+            // 5. Re-inject Blocks
+            blocks.forEach((blockContent, idx) => {
+                resultHtml = resultHtml.replace(`<!-- BLOCK_PLACEHOLDER_${idx} -->`, blockContent);
+            });
+
+            return resultHtml;
+        };
+
+        const slidesHtml = slides.map((slide) => {
+            const slideAlignment = (slide.alignment || globalAlignment) as 'center' | 'left';
+            return `
+                <div class="slide-container" style="background: ${themeConfig.background}; background-attachment: scroll; width: 100%; height: 100%;">
+                    <div class="slide" style="display: flex; flex-direction: column; align-items: ${slideAlignment === 'center' ? 'center' : 'flex-start'}; justify-content: center; width: 100%; height: 100%;">
+                        <div class="slide-content">
+                            ${renderMarkdownToHtml(slide.content, slideAlignment)}
+                        </div>
+                    </div>
                 </div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
 
         printWindow.document.write(`
             <!DOCTYPE html>
-            <html>
+            <html style="margin: 0; padding: 0; width: 100%; height: 100%;">
             <head>
                 <title>${title}</title>
-                <link href="https://fonts.googleapis.com/css2?family=${fontFamily.replace(' ', '+')}&display=swap" rel="stylesheet">
+                <link href="https://fonts.googleapis.com/css2?family=${fontFamily.replace(' ', '+')}:wght@400;600;800&display=swap" rel="stylesheet">
+                <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono&display=swap" rel="stylesheet">
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
                 <style>
-                    * { margin: 0; padding: 0; box-sizing: border-box; }
-                    body { font-family: '${fontFamily}', sans-serif; background: #000; color: #fff; }
-                    @media print {
-                        .slide { page-break-after: always; }
+                    @page {
+                        size: landscape;
+                        margin: 0;
                     }
+                    * { margin: 0; padding: 0; box-sizing: border-box; }
+                    
+                    html, body {
+                        width: 100%;
+                        height: 100%;
+                        overflow: visible;
+                    }
+
+                    body { 
+                        font-family: '${fontFamily}', sans-serif; 
+                        background: #000; 
+                    }
+                    
+                    .slide-container {
+                        width: 100%;
+                        height: 100%;
+                        page-break-after: always;
+                        break-after: page;
+                        overflow: hidden;
+                        position: relative;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                    
+                    .slide {
+                        width: 100%;
+                        height: 100%;
+                        padding: 60px 100px; /* Reduced vertical padding */
+                        display: flex;
+                        flex-direction: column;
+                        box-sizing: border-box;
+                    }
+
+                    /* Vertical Alignment Logic */
+                    .slide-content {
+                        width: 100%;
+                        /* Remove height: auto !important; let flexbox handle it */
+                    }
+
+                    @media print {
+                        body { background: ${themeConfig.background}; }
+                        .slide-container { 
+                            height: 100%; 
+                            width: 100%; 
+                            border: none;
+                            margin: 0;
+                        }
+                    }
+
+                    /* Reduce vertical margins in Markdown elements for slides */
+                    h1 { margin-bottom: 20px !important; }
+                    h2 { margin-bottom: 15px !important; }
+                    p, li { margin-bottom: 10px !important; }
+                    .block-code, blockquote, table { margin: 20px 0 !important; }
+
+                    strong { font-weight: 800; }
+                    em { font-style: italic; opacity: 0.9; }
                 </style>
             </head>
-            <body>${slidesHtml}</body>
+            <body style="margin: 0; padding: 0;">${slidesHtml}</body>
             </html>
         `);
+
         printWindow.document.close();
+
+        // Wait for fonts and images to potentially load
         setTimeout(() => {
             printWindow.print();
-        }, 500);
+        }, 1000);
         setShowExportMenu(false);
     };
+
 
     const exportToPPTX = async () => {
         const pptx = new pptxgen();
         pptx.title = title;
         pptx.author = 'Presentify';
 
+        const themeConfig = getTheme(theme);
+
+        // Helper to convert CSS color/rgb to Hex
+        const toHex = (color: string) => {
+            if (color.startsWith('#')) return color.replace('#', '').toUpperCase();
+            if (color.startsWith('rgb')) {
+                const parts = color.match(/\d+/g);
+                if (parts && parts.length >= 3) {
+                    const r = parseInt(parts[0]).toString(16).padStart(2, '0');
+                    const g = parseInt(parts[1]).toString(16).padStart(2, '0');
+                    const b = parseInt(parts[2]).toString(16).padStart(2, '0');
+                    return (r + g + b).toUpperCase();
+                }
+            }
+            return 'FFFFFF';
+        };
+
+        const bgColor = toHex(themeConfig.background.includes('gradient') ? '#1a1b26' : themeConfig.background);
+        const textColor = toHex(themeConfig.textColor);
+        const headingColor = toHex(themeConfig.headingColor);
+
         slides.forEach((slide) => {
             const pptSlide = pptx.addSlide();
-            const lines = slide.content.split('\n').filter(l => l.trim());
+            pptSlide.background = { color: bgColor };
+
+            const slideAlignment = (slide.alignment || globalAlignment) as 'center' | 'left';
+            const lines = slide.content.split('\n').filter((l: string) => l.trim() && !l.startsWith('::') && !l.startsWith('Note:'));
 
             let yPos = 1;
-            lines.forEach(line => {
+            let inCodeBlock = false;
+            let codeBuffer: string[] = [];
+
+            lines.forEach((line: string) => {
+                const trimmed = line.trim();
+
+                if (trimmed.startsWith('```')) {
+                    if (inCodeBlock) {
+                        // End of code block - render it
+                        pptSlide.addText(codeBuffer.join('\n'), {
+                            x: 0.5, y: yPos, w: 9, h: (codeBuffer.length * 0.25) + 0.4,
+                            fontSize: 14, fontFace: 'Courier New',
+                            color: 'E0E0E0', fill: { color: '2E2E2E' },
+                            valign: 'middle', align: 'left',
+                            rectRadius: 0.1
+                        });
+                        yPos += (codeBuffer.length * 0.25) + 0.6;
+                        codeBuffer = [];
+                        inCodeBlock = false;
+                    } else {
+                        inCodeBlock = true;
+                    }
+                    return;
+                }
+
+                if (inCodeBlock) {
+                    codeBuffer.push(line);
+                    return;
+                }
+
+                // Handle Images in PPTX
+                const imgMatch = line.match(/!\[(.*?)\]\((.*?)\)/);
+                if (imgMatch) {
+                    const imgUrl = imgMatch[2];
+                    // Note: Local images might not work if they are relative, 
+                    // but we assume they are URLs or the library handles them.
+                    try {
+                        pptSlide.addImage({
+                            path: imgUrl,
+                            x: 1, y: yPos, w: 8, h: 4,
+                            sizing: { type: 'contain', w: 8, h: 4 }
+                        });
+                        yPos += 4.2;
+                    } catch (e) {
+                        console.error('Failed to add image to PPTX', e);
+                    }
+                    return;
+                }
+
                 if (line.startsWith('# ')) {
-                    pptSlide.addText(line.slice(2), { x: 0.5, y: yPos, w: 9, h: 1, fontSize: 44, bold: true, color: 'FFFFFF' });
+                    pptSlide.addText(line.slice(2), {
+                        x: 0.5, y: yPos, w: 9, h: 1,
+                        fontSize: 44, bold: true, color: headingColor,
+                        align: slideAlignment
+                    });
                     yPos += 1.2;
                 } else if (line.startsWith('## ')) {
-                    pptSlide.addText(line.slice(3), { x: 0.5, y: yPos, w: 9, h: 0.8, fontSize: 32, bold: true, color: 'FFFFFF' });
+                    pptSlide.addText(line.slice(3), {
+                        x: 0.5, y: yPos, w: 9, h: 0.8,
+                        fontSize: 32, bold: true, color: headingColor,
+                        align: slideAlignment
+                    });
                     yPos += 1;
                 } else if (line.startsWith('### ')) {
-                    pptSlide.addText(line.slice(4), { x: 0.5, y: yPos, w: 9, h: 0.6, fontSize: 24, bold: true, color: 'CCCCCC' });
+                    pptSlide.addText(line.slice(4), {
+                        x: 0.5, y: yPos, w: 9, h: 0.6,
+                        fontSize: 24, bold: true, color: textColor,
+                        align: slideAlignment
+                    });
                     yPos += 0.8;
                 } else if (line.startsWith('- ')) {
-                    pptSlide.addText(line.slice(2), { x: 0.8, y: yPos, w: 8.5, h: 0.5, fontSize: 18, color: 'DDDDDD', bullet: true });
+                    pptSlide.addText(line.slice(2), {
+                        x: 1, y: yPos, w: 8.5, h: 0.5,
+                        fontSize: 18, color: textColor,
+                        bullet: true, align: slideAlignment
+                    });
                     yPos += 0.5;
-                } else if (line.trim() && !line.startsWith('Note:')) {
-                    pptSlide.addText(line, { x: 0.5, y: yPos, w: 9, h: 0.5, fontSize: 18, color: 'DDDDDD' });
+                } else {
+                    pptSlide.addText(line, {
+                        x: 0.5, y: yPos, w: 9, h: 0.5,
+                        fontSize: 18, color: textColor,
+                        align: slideAlignment
+                    });
                     yPos += 0.5;
                 }
             });
@@ -207,6 +529,7 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
         await pptx.writeFile({ fileName: `${title.replace(/[^a-z0-9]/gi, '_')}.pptx` });
         setShowExportMenu(false);
     };
+
 
     // Navigate preview slides
     const prevSlide = () => setCurrentPreviewSlide(Math.max(0, currentPreviewSlide - 1));
@@ -431,7 +754,7 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
                                     className={`w-full aspect-video rounded-xl border border-white/10 overflow-hidden flex flex-col p-6`} style={{ background: getTheme(theme).background }}
                                 >
                                     <div className={`w-full h-full overflow-y-auto ${globalAlignment === 'left' ? 'text-left' : 'text-center'}`} style={{ fontFamily: `'${fontFamily}', sans-serif` }}>
-                                        {slides[currentPreviewSlide]?.content.split('\n').map((line, idx) => {
+                                        {slides[currentPreviewSlide]?.content.split('\n').map((line: string, idx: number) => {
                                             const themeConfig = getTheme(theme);
                                             const headingClass = themeConfig.headingGradient
                                                 ? `${themeConfig.headingGradient} ${themeConfig.headingColor}`
@@ -453,7 +776,7 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
                             {/* Slide Thumbnails */}
                             <div className="p-4 border-t border-white/5 overflow-x-auto shrink-0">
                                 <div className="flex gap-2">
-                                    {slides.map((slide, idx) => {
+                                    {slides.map((slide, idx: number) => {
                                         const themeConfig = getTheme(theme);
                                         const isLightTheme = (themeConfig.baseTheme || 'black') === 'white';
 

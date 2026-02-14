@@ -10,7 +10,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@mlc-ai/web-llm": "^0.2.80",
     "@types/katex": "^0.16.8",
     "@types/uuid": "^10.0.0",
     "clsx": "^2.1.1",
