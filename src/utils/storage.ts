@@ -41,7 +41,7 @@ export const storage = {
         const data = localStorage.getItem('presentify_settings');
         const defaults: UserSettings = {
             defaultTheme: 'presentify-dark',
-            defaultFontFamily: 'Outfit',
+            defaultFontFamily: 'Tahoma',
             defaultAlignment: 'center',
             jumpToCurrentSlide: true
         };

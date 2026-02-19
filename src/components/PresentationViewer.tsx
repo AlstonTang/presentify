@@ -1,18 +1,10 @@
 import React from 'react';
-import Reveal from 'reveal.js';
-import Markdown from 'reveal.js/plugin/markdown/markdown.esm.js';
-import Notes from 'reveal.js/plugin/notes/notes.esm.js';
-import Math from 'reveal.js/plugin/math/math.esm.js';
-import Highlight from 'reveal.js/plugin/highlight/highlight.esm.js';
-import { parseMarkdownToSlides } from '../utils/markdownParser';
-import mermaid from 'mermaid';
 import { X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getTheme } from '../utils/themes';
+import { parseMarkdownToSlides } from '../utils/markdownParser';
 
-// Import reveal.js styles
-import 'reveal.js/dist/reveal.css';
-import 'reveal.js/plugin/highlight/monokai.css';
+// NOTE: heavy libs (reveal.js, plugins, mermaid, reveal css) are now loaded dynamically inside useEffect
 
 interface PresentationViewerProps {
     markdown: string;
@@ -34,15 +26,17 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
     globalTransition
 }) => {
     const deckRef = React.useRef<HTMLDivElement>(null);
-    const revealInstance = React.useRef<Reveal.Api | null>(null);
+    const revealInstance = React.useRef<any | null>(null); // changed to any to avoid static dependency
     const slides = React.useMemo(() => parseMarkdownToSlides(markdown, globalTransition), [markdown, globalTransition]);
 
     React.useEffect(() => {
         const linkId = 'reveal-theme';
         const customStyleId = 'reveal-custom-theme';
+        const coreCssId = 'reveal-core-css';
+        const highlightCssId = 'reveal-highlight-css';
 
         // Cleanup existing styles
-        [linkId, customStyleId].forEach(id => {
+        [linkId, customStyleId, coreCssId, highlightCssId].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.remove();
         });
@@ -50,7 +44,21 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
         const themeConfig = getTheme(theme);
         const baseTheme = themeConfig.baseTheme || 'black';
 
-        // 1. Load Base Theme
+        // Inject reveal core CSS and highlight theme only when needed
+        const injectCss = (id: string, href: string) => {
+            if (document.getElementById(id)) return;
+            const l = document.createElement('link');
+            l.rel = 'stylesheet';
+            l.href = href;
+            l.id = id;
+            l.crossOrigin = '';
+            document.head.appendChild(l);
+        };
+
+        injectCss(coreCssId, 'https://cdn.jsdelivr.net/npm/reveal.js/dist/reveal.css');
+        injectCss(highlightCssId, 'https://cdn.jsdelivr.net/npm/reveal.js/plugin/highlight/monokai.css');
+
+        // 1. Load Base Theme (kept same behavior, loaded from CDN)
         const link = document.createElement('link');
         link.rel = 'stylesheet';
         link.href = `https://cdn.jsdelivr.net/npm/reveal.js/dist/theme/${baseTheme}.css`;
@@ -266,137 +274,158 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
         
             ${themeConfig.customCss || ''}
         `;
-
         style.appendChild(document.createTextNode(customCss));
         document.head.appendChild(style);
 
-        // --- MERMAID CONFIGURATION ---
-        try {
-            mermaid.mermaidAPI.reset();
-        } catch (e) { }
+        // Dynamically load reveal.js, plugins and mermaid
+        let cancelled = false;
+        (async () => {
+            try {
+                const [
+                    RevealModule,
+                    MarkdownMod,
+                    NotesMod,
+                    MathMod,
+                    HighlightMod,
+                    mermaidMod
+                ] = await Promise.all([
+                    import('reveal.js'),
+                    import('reveal.js/plugin/markdown/markdown.esm.js'),
+                    import('reveal.js/plugin/notes/notes.esm.js'),
+                    import('reveal.js/plugin/math/math.esm.js'),
+                    import('reveal.js/plugin/highlight/highlight.esm.js'),
+                    import('mermaid').catch(() => null)
+                ]);
 
-        const mermaidTheme = themeConfig.baseTheme === 'white' ? 'default' : 'dark';
+                if (cancelled) return;
 
-        mermaid.initialize({
-            startOnLoad: false,
-            theme: mermaidTheme,
-            securityLevel: 'loose',
-            fontFamily: fontFamily
-        });
+                const Reveal = (RevealModule as any).default ?? RevealModule;
+                const Markdown = (MarkdownMod as any).default ?? MarkdownMod;
+                const Notes = (NotesMod as any).default ?? NotesMod;
+                const MathPlugin = (MathMod as any).default ?? MathMod;
+                const Highlight = (HighlightMod as any).default ?? HighlightMod;
+                const mermaid = mermaidMod ? ((mermaidMod as any).default ?? mermaidMod) : null;
 
-        const MermaidPlugin = {
-            id: 'mermaid',
-            init: (deck: any) => {
-                const renderedNodes = new Set<HTMLElement>();
-
-                const renderMermaid = async (nodes: HTMLElement[]) => {
-                    if (nodes.length > 0) {
-                        try {
-                            await mermaid.run({ nodes });
-                            deck.layout();
-                        } catch (error) {
-                            console.error("Mermaid rendering failed:", error);
-                        }
+                // MERMAID CONFIGURATION (if present)
+                try {
+                    if (mermaid && mermaid.mermaidAPI && mermaid.mermaidAPI.reset) {
+                        mermaid.mermaidAPI.reset();
                     }
-                };
+                } catch (e) {}
 
-                deck.on('ready', async () => {
-                    const revealEl = deck.getRevealElement();
-                    const codeBlocks = revealEl.querySelectorAll('pre code.language-mermaid, pre code.mermaid');
+                const mermaidTheme = themeConfig.baseTheme === 'white' ? 'default' : 'dark';
 
-                    const allNodes: HTMLElement[] = [];
+                if (mermaid && mermaid.initialize) {
+                    mermaid.initialize({
+                        startOnLoad: false,
+                        theme: mermaidTheme,
+                        securityLevel: 'loose',
+                        fontFamily: fontFamily
+                    });
+                }
 
-                    codeBlocks.forEach((block: HTMLElement) => {
-                        const pre = block.parentElement;
-                        if (pre && pre.tagName === 'PRE') {
-                            const div = document.createElement('div');
-                            // Copy classes (including fragments) and index attributes
-                            div.className = `mermaid ${pre.className}`;
+                const MermaidPlugin = {
+                    id: 'mermaid',
+                    init: (deck: any) => {
+                        const renderedNodes = new Set<HTMLElement>();
 
-                            // Transfer all other attributes (data-fragment-index, etc.)
-                            Array.from(pre.attributes).forEach(attr => {
-                                if (attr.name !== 'class') {
-                                    div.setAttribute(attr.name, attr.value);
+                        const renderMermaid = async (nodes: HTMLElement[]) => {
+                            if (!mermaid) return;
+                            if (nodes.length > 0) {
+                                try {
+                                    await mermaid.run({ nodes });
+                                    deck.layout();
+                                } catch (error) {
+                                    console.error("Mermaid rendering failed:", error);
+                                }
+                            }
+                        };
+
+                        deck.on('ready', async () => {
+                            const revealEl = deck.getRevealElement();
+                            const codeBlocks = revealEl.querySelectorAll('pre code.language-mermaid, pre code.mermaid');
+                            const allNodes: HTMLElement[] = [];
+
+                            codeBlocks.forEach((block: HTMLElement) => {
+                                const pre = block.parentElement;
+                                if (pre && pre.tagName === 'PRE') {
+                                    const div = document.createElement('div');
+                                    // Copy classes and attributes
+                                    div.className = `mermaid ${pre.className}`;
+                                    Array.from(pre.attributes).forEach(attr => {
+                                        if (attr.name !== 'class') {
+                                            div.setAttribute(attr.name, attr.value);
+                                        }
+                                    });
+                                    div.setAttribute('data-mermaid-src', block.textContent || '');
+                                    div.textContent = block.textContent;
+                                    pre.replaceWith(div);
+                                    allNodes.push(div);
                                 }
                             });
 
-                            div.setAttribute('data-mermaid-src', block.textContent || '');
-                            div.textContent = block.textContent;
-                            pre.replaceWith(div);
-                            allNodes.push(div);
-                        }
-                    });
+                            if (allNodes.length > 0) deck.sync();
+                            await renderMermaid(allNodes);
 
-                    // Update Reveal.js to recognize new fragments
-                    if (allNodes.length > 0) {
-                        deck.sync();
-                    }
-
-                    // Initial render for everything
-                    await renderMermaid(allNodes);
-
-                    // Mark nodes in the current slide as visibly rendered
-                    const currentSlide = deck.getCurrentSlide();
-                    if (currentSlide) {
-                        const currentMermaids = currentSlide.querySelectorAll('.mermaid');
-                        currentMermaids.forEach((n: any) => renderedNodes.add(n as HTMLElement));
-                    }
-                });
-
-                deck.on('slidechanged', async (event: any) => {
-                    const currentSlide = event.currentSlide;
-                    const mermaidNodes = currentSlide.querySelectorAll('.mermaid');
-                    const nodesToFix: HTMLElement[] = [];
-
-                    mermaidNodes.forEach((node: any) => {
-                        const htmlNode = node as HTMLElement;
-                        if (!renderedNodes.has(htmlNode)) {
-                            const src = htmlNode.getAttribute('data-mermaid-src');
-                            if (src) {
-                                htmlNode.textContent = src;
-                                htmlNode.removeAttribute('data-processed');
-                                nodesToFix.push(htmlNode);
-                                renderedNodes.add(htmlNode);
+                            const currentSlide = deck.getCurrentSlide();
+                            if (currentSlide) {
+                                const currentMermaids = currentSlide.querySelectorAll('.mermaid');
+                                currentMermaids.forEach((n: any) => renderedNodes.add(n as HTMLElement));
                             }
+                        });
+
+                        deck.on('slidechanged', async (event: any) => {
+                            const currentSlide = event.currentSlide;
+                            const mermaidNodes = currentSlide.querySelectorAll('.mermaid');
+                            const nodesToFix: HTMLElement[] = [];
+                            mermaidNodes.forEach((node: any) => {
+                                const htmlNode = node as HTMLElement;
+                                if (!renderedNodes.has(htmlNode)) {
+                                    const src = htmlNode.getAttribute('data-mermaid-src');
+                                    if (src) {
+                                        htmlNode.textContent = src;
+                                        htmlNode.removeAttribute('data-processed');
+                                        nodesToFix.push(htmlNode);
+                                        renderedNodes.add(htmlNode);
+                                    }
+                                }
+                            });
+                            if (nodesToFix.length > 0) {
+                                await renderMermaid(nodesToFix);
+                            }
+                        });
+                    }
+                };
+
+                if (deckRef.current) {
+                    const deck = new Reveal(deckRef.current, {
+                        plugins: [Markdown, MermaidPlugin as any, Highlight, Notes, MathPlugin?.KaTeX].filter(Boolean),
+                        width: 1920,
+                        height: 1080,
+                        margin: 0.1,
+                        center: globalAlignment === 'center',
+                        transition: globalTransition === 'none' ? 'none' : 'slide',
+                        hash: true,
+                        markdown: { notesSeparator: 'Note:' },
+                        highlight: { highlightOnLoad: true, escapeHTML: false } as any
+                    });
+
+                    deck.initialize().then(() => {
+                        if (initialIndices) {
+                            deck.slide(initialIndices[0], initialIndices[1]);
                         }
                     });
 
-                    if (nodesToFix.length > 0) {
-                        await renderMermaid(nodesToFix);
-                    }
-                });
-            }
-        };
-
-        if (deckRef.current) {
-            const deck = new Reveal(deckRef.current, {
-                plugins: [Markdown, MermaidPlugin as any, Highlight, Notes, Math.KaTeX],
-                width: 1920,
-                height: 1080,
-                margin: 0.1,
-                center: globalAlignment === 'center',
-                transition: globalTransition === 'none' ? 'none' : 'slide',
-                hash: true,
-                markdown: {
-                    notesSeparator: 'Note:'
-                },
-                highlight: {
-                    highlightOnLoad: true,
-                    escapeHTML: false
-                } as any
-            });
-
-            deck.initialize().then(() => {
-                if (initialIndices) {
-                    deck.slide(initialIndices[0], initialIndices[1]);
+                    revealInstance.current = deck;
                 }
-            });
-
-            revealInstance.current = deck;
-        }
+            } catch (err) {
+                console.error('Failed to load presentation runtime:', err);
+            }
+        })();
 
         return () => {
-            [linkId, customStyleId].forEach(id => {
+            cancelled = true;
+            [linkId, customStyleId, coreCssId, highlightCssId].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.remove();
             });

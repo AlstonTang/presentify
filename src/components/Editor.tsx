@@ -21,10 +21,7 @@ import { TransitionSelector } from './TransitionSelector';
 import { motion, AnimatePresence } from 'framer-motion';
 import { parseMarkdownToSlides } from '../utils/markdownParser';
 import { storage } from '../utils/storage';
-import pptxgen from 'pptxgenjs';
 import { getTheme } from '../utils/themes';
-import katex from 'katex';
-import 'katex/dist/katex.min.css';
 
 interface EditorProps {
     presentation: Presentation;
@@ -132,10 +129,20 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
         setTimeout(() => setIsSaved(false), 2000);
     };
 
-    const exportToPDF = () => {
+    const exportToPDF = async () => {
         const themeConfig = getTheme(theme);
         const printWindow = window.open('', '_blank');
         if (!printWindow) return;
+
+        // Dynamically import katex only when exporting
+        let katexLib: any = null;
+        try {
+            const katexMod = await import('katex');
+            katexLib = (katexMod as any).default ?? katexMod;
+        } catch (e) {
+            // katex optional; continue without rendering math if unavailable
+            katexLib = null;
+        }
 
         const renderMarkdownToHtml = (content: string, slideAlignment: 'center' | 'left') => {
             let html = content.trim();
@@ -156,7 +163,10 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
                     .replace(/\[(.*?)\]\((.*?)\)/g, `<a href="$2" style="color: ${themeConfig.headingColor}; text-decoration: underline;">$1</a>`)
                     .replace(/\$([^$]+)\$/g, (_, math) => {
                         try {
-                            return katex.renderToString(math, { throwOnError: false });
+                            if (katexLib && katexLib.renderToString) {
+                                return katexLib.renderToString(math, { throwOnError: false });
+                            }
+                            return math;
                         } catch (e) {
                             return math;
                         }
@@ -166,8 +176,11 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
             // 0. Extract Math Blocks ($$)
             html = html.replace(/\$\$([\s\S]*?)\$\$/g, (_, math) => {
                 try {
-                    const rendered = katex.renderToString(math, { displayMode: true, throwOnError: false });
-                    return addBlock(`<div style="margin: 30px 0; font-size: 24px;">${rendered}</div>`);
+                    if (katexLib && katexLib.renderToString) {
+                        const rendered = katexLib.renderToString(math, { displayMode: true, throwOnError: false });
+                        return addBlock(`<div style="margin: 30px 0; font-size: 24px;">${rendered}</div>`);
+                    }
+                    return addBlock(`<div style="margin: 30px 0;">${math}</div>`);
                 } catch (e) {
                     return addBlock(`<div style="margin: 30px 0;">${math}</div>`);
                 }
@@ -403,9 +416,18 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
         setShowExportMenu(false);
     };
 
-
     const exportToPPTX = async () => {
-        const pptx = new pptxgen();
+        // Dynamically import pptxgenjs when exporting PPTX
+        let PPTXGenJS: any = null;
+        try {
+            const pptxMod = await import('pptxgenjs');
+            PPTXGenJS = (pptxMod as any).default ?? pptxMod;
+        } catch (e) {
+            console.error('pptxgenjs failed to load', e);
+            return;
+        }
+
+        const pptx = new PPTXGenJS();
         pptx.title = title;
         pptx.author = 'Presentify';
 
