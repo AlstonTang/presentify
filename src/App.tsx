@@ -141,7 +141,7 @@ const App: React.FC = () => {
         return () => window.removeEventListener('popstate', handlePopState);
     }, []);
 
-    const handleCreate = () => {
+    const handleCreate = (folderId?: string) => {
         const settings = storage.getSettings();
         const newId = uuidv4();
         const newPresentation: Presentation = {
@@ -149,6 +149,7 @@ const App: React.FC = () => {
             title: 'Untitled Presentation',
             markdown: '# Welcome to Presentify\n\n*A new way to turn Markdown into beautiful presentations*\n\n## Getting Started\n\n- Write your content in Markdown\n- Use `---` to separate slides\n- Press **Present** to view\n\n## Math Support\n\nInline: $E = mc^2$\n\nBlock:\n$$\\int_{a}^{b} x^2 dx = \\frac{b^3 - a^3}{3}$$\n\nNote:\nThese are speaker notes - only you can see them!',
             theme: settings.defaultTheme,
+            folderId,
             globalAlignment: settings.defaultAlignment,
             fontFamily: settings.defaultFontFamily,
             createdAt: Date.now(),

@@ -2,11 +2,18 @@ import { transitions } from './utils/transitions'
 
 export type transitions = (typeof transitions)[number]['id']
 
+export interface Folder {
+    id: string;
+    name: string;
+    createdAt: number;
+}
+
 export interface Presentation {
     id: string;
     title: string;
     markdown: string;
     theme: string;
+    folderId?: string;
     globalAlignment?: 'center' | 'left';
     fontFamily?: string;
     globalTransition?: transitions;
