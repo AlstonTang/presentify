@@ -140,7 +140,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelect, onCreate, onPlay
 							className="w-12 h-12 flex items-center justify-center bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-text-dim group"
 							title="GitHub"
 						>
-							<img src="src/assets/GitHub_Invertocat_White.svg" style={{width: '20px', height: '20px'}} className="opacity-50 transition-opacity duration 300 group-hover:opacity-100"></img>
+							<img src="/GitHub_Invertocat_White.svg" style={{width: '20px', height: '20px'}} className="opacity-50 transition-opacity duration 300 group-hover:opacity-100"></img>
 						</button>
 						<button
 							onClick={onSettings}
