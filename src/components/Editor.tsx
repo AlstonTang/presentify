@@ -328,7 +328,7 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
 		const slidesHtml = slides.map((slide) => {
 			const slideAlignment = (slide.alignment || globalAlignment) as 'center' | 'left';
 			return `
-                <div class="slide-container" style="background: ${themeConfig.background}; background-attachment: scroll; width: 100%; height: 100%;">
+                <div class="slide-container ${slide.isCondensed ? 'condensed' : ''}" style="background: ${themeConfig.background}; background-attachment: scroll; width: 100%; height: 100%;">
                     <div class="slide" style="display: flex; flex-direction: column; align-items: ${slideAlignment === 'center' ? 'center' : 'flex-start'}; justify-content: center; width: 100%; height: 100%;">
                         <div class="slide-content">
                             ${renderMarkdownToHtml(slide.content, slideAlignment)}
@@ -405,6 +405,12 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
                     h2 { margin-bottom: 15px !important; }
                     p, li { margin-bottom: 10px !important; }
                     .block-code, blockquote, table { margin: 20px 0 !important; }
+                    
+                    .condensed h1 { font-size: 54px !important; }
+                    .condensed h2 { font-size: 38px !important; }
+                    .condensed h3 { font-size: 28px !important; }
+                    .condensed p, .condensed li { font-size: 22px !important; }
+                    .condensed .block-code { font-size: 14px !important; padding: 18px !important; }
 
                     strong { font-weight: 800; }
                     em { font-style: italic; opacity: 0.9; }
@@ -782,19 +788,31 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
 								<div
 									className={`w-full aspect-video rounded-xl border border-white/10 overflow-hidden flex flex-col p-6`} style={{ background: getTheme(theme).background }}
 								>
-									<div className={`w-full h-full overflow-y-auto ${globalAlignment === 'left' ? 'text-left' : 'text-center'}`} style={{ fontFamily: `'${fontFamily}', sans-serif` }}>
+									<div className={`w-full h-full overflow-y-auto ${globalAlignment === 'left' ? 'text-left' : 'text-center'} ${slides[currentPreviewSlide]?.isCondensed ? 'preview-condensed' : ''}`} style={{ fontFamily: `'${fontFamily}', sans-serif` }}>
 										{slides[currentPreviewSlide]?.content.split('\n').map((line: string, idx: number) => {
 											const themeConfig = getTheme(theme);
+											const isCondensed = slides[currentPreviewSlide]?.isCondensed;
 											const headingClass = themeConfig.headingGradient
 												? `${themeConfig.headingGradient} ${themeConfig.headingColor}`
 												: themeConfig.headingColor;
 
-											if (line.startsWith('# ')) return <h1 key={idx} className={`text-2xl font-bold ${headingClass} mb-4 wrap-break-word`}>{line.slice(2)}</h1>;
-											if (line.startsWith('## ')) return <h2 key={idx} className={`text-xl font-semibold ${headingClass} opacity-90 mb-3 wrap-break-word`}>{line.slice(3)}</h2>;
-											if (line.startsWith('### ')) return <h3 key={idx} className={`text-lg font-medium ${themeConfig.textColor} mb-2 wrap-break-word`}>{line.slice(4)}</h3>;
-											if (line.startsWith('- ')) return <p key={idx} className={`text-sm ${themeConfig.textColor} mb-1 pl-4 relative before:content-['•'] before:absolute before:left-0 before:text-white/40 wrap-break-word`}>{line.slice(2)}</p>;
-											if (line.includes('$')) return <p key={idx} className={`text-sm ${themeConfig.textColor} italic my-2 p-2 bg-white/5 rounded border border-white/5 text-center`}>📐 Math Expression</p>;
-											if (line.trim() && !line.startsWith('Note:')) return <p key={idx} className={`text-sm ${themeConfig.textColor} mb-1 leading-relaxed wrap-break-word`}>{line}</p>;
+											if (line.startsWith('# ')) return <h1 key={idx} className={`${isCondensed ? 'text-lg' : 'text-2xl'} font-bold ${headingClass} mb-4 wrap-break-word`}>{line.slice(2)}</h1>;
+											if (line.startsWith('## ')) return <h2 key={idx} className={`${isCondensed ? 'text-md' : 'text-xl'} font-semibold ${headingClass} opacity-90 mb-3 wrap-break-word`}>{line.slice(3)}</h2>;
+											if (line.startsWith('### ')) return <h3 key={idx} className={`${isCondensed ? 'text-base' : 'text-lg'} font-medium ${themeConfig.textColor} mb-2 wrap-break-word`}>{line.slice(4)}</h3>;
+											if (line.trim().startsWith('- ')) {
+												const indent = (line.match(/^\s*/)?.[0].length || 0) * 12;
+												return (
+													<p
+														key={idx}
+														className={`${isCondensed ? 'text-[10px]' : 'text-sm'} ${themeConfig.textColor} mb-1 pl-4 relative before:content-['•'] before:absolute before:left-0 before:text-white/40 wrap-break-word`}
+														style={{ marginLeft: `${indent}px` }}
+													>
+														{line.trim().slice(2)}
+													</p>
+												);
+											}
+											if (line.includes('$')) return <p key={idx} className={`${isCondensed ? 'text-[10px]' : 'text-sm'} ${themeConfig.textColor} italic my-2 p-2 bg-white/5 rounded border border-white/5 text-center`}>📐 Math Expression</p>;
+											if (line.trim() && !line.startsWith('Note:')) return <p key={idx} className={`${isCondensed ? 'text-[10px]' : 'text-sm'} ${themeConfig.textColor} mb-1 leading-relaxed wrap-break-word`}>{line}</p>;
 											return null;
 										})}
 									</div>

@@ -3,8 +3,16 @@ import type { SlideContent, transitions } from '../types';
 /**
  * Thresholds for auto-splitting long content
  */
+const MAX_SLIDE_WEIGHT = 18; // Equivalent to ~15 lines of regular text
 const AUTO_SPLIT_CHAR_LIMIT = 1500;
-const AUTO_SPLIT_LINE_LIMIT = 24;
+
+type BlockType = 'header' | 'paragraph' | 'list' | 'code' | 'math' | 'table' | 'quote' | 'empty';
+
+interface Block {
+    type: BlockType;
+    lines: string[];
+    weight: number;
+}
 
 export function parseMarkdownToSlides(markdown: string, globalTransition: transitions = 'none'): SlideContent[] {
     const result: SlideContent[] = [];
@@ -310,45 +318,304 @@ function processMediaSyntax(text: string): string {
     });
 }
 
+function getBlocks(text: string): Block[] {
+    const lines = text.split('\n');
+    const blocks: Block[] = [];
+    let currentBlockLines: string[] = [];
+    let currentType: BlockType | null = null;
+
+    const pushBlock = () => {
+        if (currentBlockLines.length === 0) return;
+        const weight = calculateWeight(currentType || 'paragraph', currentBlockLines);
+        blocks.push({ type: currentType || 'paragraph', lines: [...currentBlockLines], weight });
+        currentBlockLines = [];
+        currentType = null;
+    };
+
+    let inCodeBlock = false;
+    let inMathBlock = false;
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const trimmed = line.trim();
+
+        // 1. Handle Code Blocks
+        if (trimmed.startsWith('```')) {
+            if (!inCodeBlock) {
+                pushBlock();
+                inCodeBlock = true;
+                currentType = 'code';
+            } else {
+                currentBlockLines.push(line);
+                inCodeBlock = false;
+                pushBlock();
+                continue;
+            }
+        }
+        if (inCodeBlock) {
+            currentBlockLines.push(line);
+            continue;
+        }
+
+        // 2. Handle Math Blocks
+        if (trimmed.startsWith('$$')) {
+            if (!inMathBlock && !trimmed.endsWith('$$', trimmed.length > 2 ? trimmed.length : undefined)) {
+                pushBlock();
+                inMathBlock = true;
+                currentType = 'math';
+            } else if (inMathBlock) {
+                currentBlockLines.push(line);
+                inMathBlock = false;
+                pushBlock();
+                continue;
+            } else {
+                pushBlock();
+                blocks.push({ type: 'math', lines: [line], weight: 3 });
+                continue;
+            }
+        }
+        if (inMathBlock) {
+            currentBlockLines.push(line);
+            continue;
+        }
+
+        // 3. Handle Empty Lines
+        if (!trimmed) {
+            pushBlock();
+            blocks.push({ type: 'empty', lines: [line], weight: 0.5 });
+            continue;
+        }
+
+        // 4. Handle Headers
+        if (trimmed.startsWith('#')) {
+            pushBlock();
+            blocks.push({ type: 'header', lines: [line], weight: trimmed.startsWith('###') ? 1.5 : (trimmed.startsWith('##') ? 2 : 2.5) });
+            continue;
+        }
+
+        // 5. Handle Lists
+        const isListItem = trimmed.match(/^([-*+]|\d+\.)\s+/);
+        if (isListItem) {
+            if (currentType !== 'list') pushBlock();
+            currentType = 'list';
+            currentBlockLines.push(line);
+            continue;
+        }
+
+        // 6. Handle Tables
+        if (trimmed.startsWith('|')) {
+            if (currentType !== 'table') pushBlock();
+            currentType = 'table';
+            currentBlockLines.push(line);
+            continue;
+        }
+
+        // 7. Handle Quotes
+        if (trimmed.startsWith('>')) {
+            if (currentType !== 'quote') pushBlock();
+            currentType = 'quote';
+            currentBlockLines.push(line);
+            continue;
+        }
+
+        // 8. Regular Paragraphs
+        if (currentType !== 'paragraph' && currentType !== null) pushBlock();
+        currentType = 'paragraph';
+        currentBlockLines.push(line);
+    }
+
+    pushBlock();
+    return blocks;
+}
+
+function getIndentationLevel(line: string): number {
+    const match = line.match(/^(\s*)/);
+    if (!match) return 0;
+    const spaces = match[1];
+    let level = 0;
+    for (const char of spaces) {
+        if (char === '\t') level += 4;
+        else level += 1;
+    }
+    return level;
+}
+
+function calculateWeight(type: BlockType, lines: string[]): number {
+    switch (type) {
+        case 'header':
+            return lines[0].startsWith('###') ? 2 : (lines[0].startsWith('##') ? 2.5 : 3.5);
+        case 'paragraph':
+            return lines.length * 1.3; // Increased from 1.1
+        case 'list':
+            // Nested items take more visual weight due to indentation and mental load
+            const nestedCount = lines.filter(l => l.startsWith(' ') || l.startsWith('\t')).length;
+            return lines.length * 1.4 + 0.5 + (nestedCount * 0.5);
+        case 'code':
+            return lines.length * 0.9 + 2.5; 
+        case 'math':
+            return Math.max(3, lines.length * 1.4);
+        case 'table':
+            return lines.length * 1.5 + 2;
+        case 'quote':
+            return lines.length * 1.3 + 1.5;
+        case 'empty':
+            return 0.5;
+        default:
+            return lines.length * 1.2;
+    }
+}
+
 function autoSplitIfLong(slide: SlideContent, startLine: number): SlideContent[] {
-    const lines = slide.content.split('\n');
-    if (slide.content.length <= AUTO_SPLIT_CHAR_LIMIT && lines.length <= AUTO_SPLIT_LINE_LIMIT) {
+    const blocks = getBlocks(slide.content);
+    const totalWeight = blocks.reduce((acc, b) => acc + b.weight, 0);
+
+    // If it fits normally or within the condensation threshold (35% over), don't split
+    if (totalWeight <= MAX_SLIDE_WEIGHT && slide.content.length <= AUTO_SPLIT_CHAR_LIMIT) {
         return [slide];
     }
 
-    const sections: string[] = [];
-    let currentChunk: string[] = [];
-    let currentCharCount = 0;
-    let inCodeBlock = false;
+    // Condense if only slightly over (up to 30% over MAX_SLIDE_WEIGHT)
+    if (totalWeight <= MAX_SLIDE_WEIGHT * 1.3) {
+        return [{ ...slide, isCondensed: true }];
+    }
 
-    lines.forEach((line) => {
-        if (line.trim().startsWith('```')) inCodeBlock = !inCodeBlock;
-        const shouldSplit = !inCodeBlock && (
-            (currentCharCount > AUTO_SPLIT_CHAR_LIMIT * 0.8 && line.startsWith('#')) ||
-            (currentChunk.length >= AUTO_SPLIT_LINE_LIMIT)
-        );
-        if (shouldSplit && currentChunk.length > 0) {
-            sections.push(currentChunk.join('\n'));
-            currentChunk = [];
-            currentCharCount = 0;
+    const sections: string[] = [];
+    let currentSectionBlocks: Block[] = [];
+    let currentWeight = 0;
+
+    blocks.forEach((block) => {
+        // If a single block is already too big (e.g. massive list), split it internally if it's a list or paragraph
+        if (block.weight > MAX_SLIDE_WEIGHT * 0.8) {
+            let prefixLines: string[] = [];
+            let prefixWeight = 0;
+
+            if (currentSectionBlocks.length > 0) {
+                const lastBlock = currentSectionBlocks[currentSectionBlocks.length - 1];
+                // Headers often should move to the first segment of the split block
+                if (lastBlock.type === 'header') {
+                    const header = currentSectionBlocks.pop()!;
+                    prefixLines = header.lines;
+                    prefixWeight = header.weight;
+                } else if (lastBlock.type === 'paragraph' && lastBlock.lines.length <= 3) {
+                    // Short paragraphs (e.g. "Example: ...") should stay on current slide AND repeat on segments
+                    prefixLines = lastBlock.lines;
+                    prefixWeight = lastBlock.weight;
+
+                    // If this context is the ONLY meaningful content in this section, don't push a redundant pre-slide
+                    const meaningfulPreBlocks = currentSectionBlocks.filter(b => b.type !== 'empty' && b.type !== 'header');
+                    if (meaningfulPreBlocks.length === 1 && meaningfulPreBlocks[0] === lastBlock) {
+                        currentSectionBlocks = [];
+                    }
+                }
+
+                if (currentSectionBlocks.length > 0) {
+                    sections.push(currentSectionBlocks.map(b => b.lines.join('\n')).join('\n'));
+                    currentSectionBlocks = [];
+                    currentWeight = 0;
+                }
+            }
+
+            if (block.type === 'list' || block.type === 'paragraph') {
+                // Internal split for long lists/paragraphs
+                let subLines: string[] = [...prefixLines];
+                let subWeight = prefixWeight;
+
+                // Identify if the prefix is a good "context header" to repeat (e.g. "Example: ...")
+                const contextHeader = (prefixLines.length > 0 && prefixLines.length <= 2) 
+                    ? prefixLines.join('\n').trim() 
+                    : null;
+
+                const parentStack: { level: number, text: string }[] = [];
+
+                block.lines.forEach(line => {
+                    const currentLevel = getIndentationLevel(line);
+                    const lineWeight = 1.4;
+
+                    if (subWeight + lineWeight > MAX_SLIDE_WEIGHT * 0.9 && subLines.length > prefixLines.length) {
+                        sections.push(subLines.join('\n'));
+                        
+                        // Start a new slide segment
+                        const newSubLines: string[] = [];
+                        if (contextHeader) {
+                            newSubLines.push(`${contextHeader} (continued)`);
+                        }
+                        
+                        // Add parent breadcrumbs to preserve hierarchy structure and indentation
+                        parentStack.forEach((p) => {
+                            // Only add if it's a true parent of the current line (already filtered below)
+                            if (p.level < currentLevel) {
+                                newSubLines.push(`${p.text} (continued)`);
+                            }
+                        });
+                        
+                        subLines = newSubLines;
+                        subWeight = subLines.length * 1.5; 
+                    }
+                    
+                    // Maintain lineage stack for hierarchy breadcrumbs
+                    while (parentStack.length > 0 && parentStack[parentStack.length - 1].level >= currentLevel) {
+                        parentStack.pop();
+                    }
+                    
+                    // Only track as a potential parent if it's a list item line
+                    if (line.trim().match(/^([-*+]|\d+\.)\s+/)) {
+                        parentStack.push({ level: currentLevel, text: line });
+                    }
+                    
+                    subLines.push(line);
+                    subWeight += lineWeight;
+                });
+                if (subLines.length > 0) {
+                    sections.push(subLines.join('\n'));
+                }
+                return;
+            }
         }
-        currentChunk.push(line);
-        currentCharCount += line.length + 1;
+
+        // Normal split between blocks
+        if (currentWeight + block.weight > MAX_SLIDE_WEIGHT && currentSectionBlocks.length > 0) {
+            // Check if we are splitting right after a header - try to keep header with at least one block
+            const lastBlock = currentSectionBlocks[currentSectionBlocks.length - 1];
+            if (lastBlock.type === 'header' && currentSectionBlocks.length > 1) {
+                const header = currentSectionBlocks.pop()!;
+                sections.push(currentSectionBlocks.map(b => b.lines.join('\n')).join('\n'));
+                currentSectionBlocks = [header, block];
+                currentWeight = header.weight + block.weight;
+            } else {
+                sections.push(currentSectionBlocks.map(b => b.lines.join('\n')).join('\n'));
+                currentSectionBlocks = [block];
+                currentWeight = block.weight;
+            }
+        } else {
+            if (block.type !== 'empty' || currentSectionBlocks.length > 0) {
+                currentSectionBlocks.push(block);
+                currentWeight += block.weight;
+            }
+        }
     });
 
-    if (currentChunk.length > 0) sections.push(currentChunk.join('\n'));
+    if (currentSectionBlocks.length > 0) {
+        sections.push(currentSectionBlocks.map(b => b.lines.join('\n')).join('\n'));
+    }
 
     const headerMatch = slide.content.match(/^(#+)\s+(.+)$/m);
-    const baseTitle = headerMatch ? headerMatch[2] : 'Continued';
-    const headerLevel = headerMatch ? headerMatch[1] : '##';
 
+    let currentLineOffset = 0;
     return sections.map((sect, idx) => {
         const sectLines = sect.split('\n');
-        const sRange: [number, number] = [startLine, startLine + sectLines.length - 1];
-        startLine += sectLines.length;
+        const sRange: [number, number] = [startLine + currentLineOffset, startLine + currentLineOffset + sectLines.length - 1];
+        currentLineOffset += sectLines.length;
+
+        let finalContent = sect.trim();
+        if (idx > 0 && headerMatch) {
+            const headerLevel = headerMatch[1];
+            const baseTitle = headerMatch[2];
+            finalContent = `${headerLevel} ${baseTitle} (continued)\n\n${finalContent}`;
+        }
+
         return {
             ...slide,
-            content: idx > 0 ? `${headerLevel} ${baseTitle} (Part ${idx + 1})\n\n${sect}` : sect,
+            content: finalContent,
             notes: idx === 0 ? slide.notes : '',
             sourceLineRange: sRange
         };

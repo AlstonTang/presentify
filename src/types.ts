@@ -29,6 +29,7 @@ export interface SlideContent {
     subSlides?: SlideContent[];
     transition?: transitions;
     alignment?: string;
+    isCondensed?: boolean;
     sourceLineRange?: [number, number]; // [startLine, endLine] 0-indexed
 }
 

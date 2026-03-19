@@ -275,6 +275,13 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
                 background: rgba(255,255,255,0.2);
             }
         
+            /* 7. CONDENSED SLIDES */
+            .reveal section.condensed h1 { font-size: 2.2em !important; }
+            .reveal section.condensed h2 { font-size: 1.6em !important; }
+            .reveal section.condensed h3 { font-size: 1.3em !important; }
+            .reveal section.condensed p, .reveal section.condensed li { font-size: 0.85em !important; }
+            .reveal section.condensed pre code { font-size: 0.6em !important; }
+
             ${themeConfig.customCss || ''}
         `;
         style.appendChild(document.createTextNode(customCss));
@@ -462,7 +469,7 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
                                     <section
                                         key={`${index}-${subIdx}`}
                                         data-markdown=""
-                                        className={(sub.alignment === 'left' || globalAlignment === 'left') ? 'left-align' : ''}
+                                        className={`${(sub.alignment === 'left' || globalAlignment === 'left') ? 'left-align' : ''} ${sub.isCondensed ? 'condensed' : ''}`}
                                     >
                                         <textarea data-template defaultValue={sub.content} key={sub.content} />
                                     </section>
@@ -471,7 +478,7 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
                                 <section
                                     key={index}
                                     data-markdown=""
-                                    className={(slide.alignment === 'left' || globalAlignment === 'left') ? 'left-align' : ''}
+                                    className={`${(slide.alignment === 'left' || globalAlignment === 'left') ? 'left-align' : ''} ${slide.isCondensed ? 'condensed' : ''}`}
                                 >
                                     <textarea data-template defaultValue={slide.content} key={slide.content} />
                                 </section>
