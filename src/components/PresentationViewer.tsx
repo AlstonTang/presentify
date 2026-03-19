@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getTheme } from '../utils/themes';
 import { parseMarkdownToSlides } from '../utils/markdownParser';
+import { loadGoogleFont } from '../utils/fontLoader';
 
 // NOTE: heavy libs (reveal.js, plugins, mermaid, reveal css) are now loaded dynamically inside useEffect
 
@@ -40,6 +41,8 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
             const el = document.getElementById(id);
             if (el) el.remove();
         });
+
+        loadGoogleFont(fontFamily);
 
         const themeConfig = getTheme(theme);
         const baseTheme = themeConfig.baseTheme || 'black';

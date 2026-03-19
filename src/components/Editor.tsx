@@ -22,6 +22,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { parseMarkdownToSlides } from '../utils/markdownParser';
 import { storage } from '../utils/storage';
 import { getTheme } from '../utils/themes';
+import { loadGoogleFont } from '../utils/fontLoader';
 
 interface EditorProps {
 	presentation: Presentation;
@@ -36,6 +37,12 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
 	const [theme, setTheme] = React.useState(presentation.theme || 'black');
 	const [globalAlignment, setGlobalAlignment] = React.useState<'center' | 'left'>(presentation.globalAlignment || 'center');
 	const [fontFamily, setFontFamily] = React.useState(presentation.fontFamily || 'Tahoma');
+
+	// Load Google Font whenever it changes
+	React.useEffect(() => {
+		loadGoogleFont(fontFamily);
+	}, [fontFamily]);
+
 	const [globalTransition, setGlobalTransition] = React.useState(presentation.globalTransition || 'none');
 	const [showGuide, setShowGuide] = React.useState(false);
 	const [showPreview, setShowPreview] = React.useState(true);
@@ -336,7 +343,7 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
             <html style="margin: 0; padding: 0; width: 100%; height: 100%;">
             <head>
                 <title>${title}</title>
-                <link href="https://fonts.googleapis.com/css2?family=${fontFamily.replace(' ', '+')}:wght@400;600;800&display=swap" rel="stylesheet">
+                <link href="https://fonts.googleapis.com/css2?family=${fontFamily.replace(/\s+/g, '+')}:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
                 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono&display=swap" rel="stylesheet">
                 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
                 <style>
