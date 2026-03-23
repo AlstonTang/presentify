@@ -3,6 +3,7 @@ import { Dashboard } from './components/Dashboard';
 import { Editor } from './components/Editor';
 import { PresentationViewer } from './components/PresentationViewer';
 import { Settings } from './components/Settings';
+import { OfflineBanner } from './components/OfflineBanner';
 import type { Presentation } from './types';
 import { storage } from './utils/storage';
 import { v4 as uuidv4 } from 'uuid';
@@ -306,6 +307,7 @@ const App: React.FC = () => {
                 )}
             </AnimatePresence>
             <Settings isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+            <OfflineBanner />
         </div>
     );
 };

@@ -9,7 +9,6 @@ export default defineConfig({
 			registerType: 'autoUpdate',
 			includeAssets: ['favicon.ico', 'GitHub_Invertocat_White.svg'],
 			workbox: {
-				globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
 				runtimeCaching: [
 					{
 						urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -62,6 +61,17 @@ export default defineConfig({
 				theme_color: '#050811',
 				background_color: '#050811',
 				display: 'standalone',
+				icons: [
+					{
+						src: 'favicon.ico',
+						sizes: '64x64 32x32 24x24 16x16',
+						type: 'image/x-icon'
+					}
+				]
+			},
+			devOptions: {
+				enabled: true,
+				type: 'module'
 			}
 		})
 	],
