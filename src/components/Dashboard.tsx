@@ -4,6 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { Presentation, Folder as FolderType } from '../types';
 import { storage } from '../utils/storage';
 import { v4 as uuidv4 } from 'uuid';
+import { exportImport } from '../utils/exportImport';
+import { Download as DownloadIcon, Upload as UploadIcon } from 'lucide-react';
 
 interface DashboardProps {
 	onSelect: (id: string) => void;
@@ -22,6 +24,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelect, onCreate, onPlay
 	const [editingFolder, setEditingFolder] = React.useState<FolderType | null>(null);
 	const [newFolderName, setNewFolderName] = React.useState('');
 	const [movingPresentationId, setMovingPresentationId] = React.useState<string | null>(null);
+    const [exportingPresentationId, setExportingPresentationId] = React.useState<string | null>(null);
+    const [isExportModalOpen, setIsExportModalOpen] = React.useState(false);
+    const [exportOptions, setExportOptions] = React.useState({ includeFonts: true, includeImages: true });
 
 	React.useEffect(() => {
 		const load = () => {
@@ -99,6 +104,56 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelect, onCreate, onPlay
 		}
 	};
 
+    const handleExportAll = async () => {
+        const bundle = await exportImport.createBundle(undefined, exportOptions);
+        exportImport.downloadBundle(bundle, `presentify-backup-${new Date().toISOString().split('T')[0]}.json`);
+        setIsExportModalOpen(false);
+    };
+
+    const handleImportAll = () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        input.onchange = async (e: any) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async (event: any) => {
+                try {
+                    const bundle = JSON.parse(event.target.result);
+                    const res = await exportImport.importBundle(bundle);
+                    alert(`Successfully imported ${res.count} presentations!`);
+                    setPresentations(storage.getPresentations());
+                    setFolders(storage.getFolders());
+                } catch (err) {
+                    console.error(err);
+                    alert('Failed to import data. Please check the file format.');
+                }
+            };
+            reader.readAsText(file);
+        };
+        input.click();
+    };
+
+    const handleExportSingle = async (id: string, title: string, options?: { includeFonts: boolean, includeImages: boolean }) => {
+        const bundle = await exportImport.createBundle([id], options);
+        exportImport.downloadBundle(bundle, `${title.replace(/[^a-z0-9]/gi, '_')}.json`);
+        setExportingPresentationId(null);
+    };
+
+    const handleExportMarkdown = (id: string, title: string) => {
+        const p = storage.getPresentationById(id);
+        if (!p) return;
+        const blob = new Blob([p.markdown], { type: 'text/markdown' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${title.replace(/[^a-z0-9]/gi, '_')}.md`;
+        a.click();
+        URL.revokeObjectURL(url);
+        setExportingPresentationId(null);
+    };
+
 	return (
 		<div className="min-h-screen bg-bg-dark text-white selection:bg-violet-500/30">
 			<div className="relative z-10 max-w-[calc(100%-40px)] mx-auto px-6 py-12 lg:py-20">
@@ -141,6 +196,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelect, onCreate, onPlay
 							title="GitHub"
 						>
 							<img src="/GitHub_Invertocat_White.svg" style={{width: '20px', height: '20px'}} className="opacity-50 transition-opacity duration 300 group-hover:opacity-100"></img>
+						</button>
+						<button
+							onClick={() => setIsExportModalOpen(true)}
+							className="w-12 h-12 flex items-center justify-center bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-text-dim hover:text-white transition-all"
+							title="Backup All Data (JSON)"
+						>
+							<UploadIcon size={20} />
+						</button>
+						<button
+							onClick={handleImportAll}
+							className="w-12 h-12 flex items-center justify-center bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-text-dim hover:text-white transition-all"
+							title="Import Data (JSON)"
+						>
+							<DownloadIcon size={20} />
 						</button>
 						<button
 							onClick={onSettings}
@@ -323,6 +392,50 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelect, onCreate, onPlay
 																)}
 															</AnimatePresence>
 														</div>
+														<div className="relative">
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); setExportingPresentationId(exportingPresentationId === p.id ? null : p.id); }}
+                                                                className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all border ${exportingPresentationId === p.id ? 'bg-blue-500 text-white border-blue-500' : 'bg-white/5 text-blue-400 hover:text-white border-transparent hover:border-white/10'}`}
+                                                                title="Export Presentation"
+                                                            >
+                                                                <UploadIcon size={18} />
+                                                            </button>
+
+                                                            <AnimatePresence>
+                                                                {exportingPresentationId === p.id && (
+                                                                    <motion.div
+                                                                        initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                                                                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                                        exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                                                                        className="absolute right-0 top-12 z-50 w-56 bg-[#0a0e1a]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-2"
+                                                                        onClick={(e) => e.stopPropagation()}
+                                                                    >
+                                                                        <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-text-dim border-b border-white/5 mb-1">Export Options</div>
+                                                                        <button
+                                                                            onClick={() => handleExportSingle(p.id, p.title, { includeFonts: true, includeImages: true })}
+                                                                            className="w-full px-3 py-2 hover:bg-white/5 rounded-xl text-sm transition-colors text-left"
+                                                                        >
+                                                                            <span className="font-semibold text-blue-400">JSON (Full)</span>
+                                                                            <div className="text-[10px] text-text-dim">Include fonts & images</div>
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => handleExportSingle(p.id, p.title, { includeFonts: false, includeImages: false })}
+                                                                            className="w-full px-3 py-2 hover:bg-white/5 rounded-xl text-sm transition-colors text-left"
+                                                                        >
+                                                                            <span className="font-semibold text-violet-400">JSON (Data only)</span>
+                                                                            <div className="text-[10px] text-text-dim">No binary assets</div>
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => handleExportMarkdown(p.id, p.title)}
+                                                                            className="w-full px-3 py-2 hover:bg-white/5 rounded-xl text-sm transition-colors text-left border-t border-white/5 mt-1 pt-2"
+                                                                        >
+                                                                            <span className="font-semibold text-emerald-400">Markdown (.md)</span>
+                                                                            <div className="text-[10px] text-text-dim">Raw source text</div>
+                                                                        </button>
+                                                                    </motion.div>
+                                                                )}
+                                                            </AnimatePresence>
+                                                        </div>
 														<button
 															onClick={(e) => { e.stopPropagation(); onPlay(p.id); }}
 															className="w-10 h-10 flex items-center justify-center bg-white/5 hover:bg-green-500/20 rounded-xl text-green-400 border border-transparent hover:border-green-500/50 transition-all"
@@ -483,6 +596,75 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelect, onCreate, onPlay
 					</div>
 				)}
 			</AnimatePresence>
+
+            {/* Global Export Settings Modal */}
+            <AnimatePresence>
+                {isExportModalOpen && (
+                    <div className="fixed inset-0 z-100 flex items-center justify-center p-6">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setIsExportModalOpen(false)}
+                            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                            className="relative w-full max-w-sm bg-[#0a0e1a] border border-white/10 rounded-3xl p-8 shadow-2xl overflow-hidden"
+                        >
+                            <div className="absolute top-0 left-0 w-full h-1 bg-violet-500/50" />
+                            <div className="flex flex-col">
+                                <div className="flex justify-between items-center mb-6">
+                                    <h3 className="text-2xl font-bold">Backup Data</h3>
+                                    <button onClick={() => setIsExportModalOpen(false)} className="text-text-dim hover:text-white transition-colors">
+                                        <X size={24} />
+                                    </button>
+                                </div>
+
+                                <div className="space-y-4 mb-8">
+                                    <p className="text-sm text-text-dim mb-4">Select which assets to include in your backup file.</p>
+                                    
+                                    <div 
+                                        onClick={() => setExportOptions(prev => ({ ...prev, includeFonts: !prev.includeFonts }))}
+                                        className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5 cursor-pointer hover:border-violet-500/30 transition-all"
+                                    >
+                                        <div>
+                                            <div className="font-bold text-sm">Include Custom Fonts</div>
+                                            <div className="text-[10px] text-text-dim">Portable, but larger file size</div>
+                                        </div>
+                                        <div className={`w-10 h-6 rounded-full p-1 transition-all ${exportOptions.includeFonts ? 'bg-violet-500' : 'bg-gray-700'}`}>
+                                            <div className={`w-4 h-4 bg-white rounded-full transition-all ${exportOptions.includeFonts ? 'translate-x-4' : 'translate-x-0'}`} />
+                                        </div>
+                                    </div>
+
+                                    <div 
+                                        onClick={() => setExportOptions(prev => ({ ...prev, includeImages: !prev.includeImages }))}
+                                        className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5 cursor-pointer hover:border-violet-500/30 transition-all"
+                                    >
+                                        <div>
+                                            <div className="font-bold text-sm">Include Local Images</div>
+                                            <div className="text-[10px] text-text-dim">Portable, but larger file size</div>
+                                        </div>
+                                        <div className={`w-10 h-6 rounded-full p-1 transition-all ${exportOptions.includeImages ? 'bg-violet-500' : 'bg-gray-700'}`}>
+                                            <div className={`w-4 h-4 bg-white rounded-full transition-all ${exportOptions.includeImages ? 'translate-x-4' : 'translate-x-0'}`} />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <button
+                                    onClick={handleExportAll}
+                                    className="w-full px-6 py-4 bg-grad-main hover:brightness-110 rounded-2xl font-bold text-white transition-all shadow-[0_10px_20px_rgba(139,92,246,0.3)] flex items-center justify-center gap-2"
+                                >
+                                    <UploadIcon size={20} />
+                                    <span>Download Backup</span>
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
 		</div>
 	);
 };

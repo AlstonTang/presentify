@@ -23,3 +23,17 @@ const isStandardFont = (fontFamily: string) => {
     const standardFonts = ['Arial', 'Helvetica', 'Times New Roman', 'Courier New', 'Georgia', 'Verdana', 'Tahoma', 'Trebuchet MS', 'Impact', 'Comic Sans MS'];
     return standardFonts.some(f => fontFamily.toLowerCase().includes(f.toLowerCase()));
 };
+
+/**
+ * Registers a custom font in the browser's Document.
+ */
+export const registerCustomFont = async (name: string, data: ArrayBuffer) => {
+    try {
+        const fontFace = new FontFace(name, data);
+        await fontFace.load();
+        (document as any).fonts.add(fontFace);
+        console.log(`Custom font "${name}" registered successfully.`);
+    } catch (error) {
+        console.error(`Failed to register custom font "${name}":`, error);
+    }
+};

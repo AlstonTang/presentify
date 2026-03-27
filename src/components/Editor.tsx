@@ -8,7 +8,7 @@ import {
 	AlignCenter,
 	Copy,
 	Sidebar as SidebarIcon,
-	Download,
+    Upload,
 	FileText,
 	Presentation as PresentationIcon,
 	ChevronLeft,
@@ -23,6 +23,10 @@ import { parseMarkdownToSlides } from '../utils/markdownParser';
 import { storage } from '../utils/storage';
 import { getTheme } from '../utils/themes';
 import { loadGoogleFont } from '../utils/fontLoader';
+import { ImageSelector } from './ImageSelector';
+import { resolveLocalImages } from '../utils/imageStorage';
+import { exportImport } from '../utils/exportImport';
+import { Database } from 'lucide-react';
 
 interface EditorProps {
 	presentation: Presentation;
@@ -69,10 +73,20 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
 			globalTransition !== presentation.globalTransition;
 	}, [markdown, title, theme, globalAlignment, globalTransition, fontFamily, presentation]);
 
-	// Parse slides for preview
-	const slides = React.useMemo(() => {
-		const parsed = parseMarkdownToSlides(markdown);
-		// Flatten vertical slides for preview
+    const [resolvedMarkdown, setResolvedMarkdown] = React.useState(markdown);
+
+    React.useEffect(() => {
+        const resolve = async () => {
+            const res = await resolveLocalImages(markdown);
+            setResolvedMarkdown(res);
+        };
+        resolve();
+    }, [markdown]);
+
+    // Parse slides for preview
+    const slides = React.useMemo(() => {
+        const parsed = parseMarkdownToSlides(resolvedMarkdown);
+        // Flatten vertical slides for preview
 		const flat: (SlideContent & { isSubSlide?: boolean })[] = [];
 		parsed.forEach(slide => {
 			if (slide.type === 'vertical' && slide.subSlides) {
@@ -248,9 +262,10 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
 
 			// 3. Extract Images
 			html = html.replace(/!\[(.*?)\]\((.*?)\)/g, (_, alt, url) => {
+                const resolvedUrl = url.includes('local-img-') ? url : url; // Already replaced by resolvedMarkdown theoretically, but handle explicitly if needed
 				return addBlock(`
                     <div style="margin: 30px 0; text-align: ${slideAlignment}; width: 100%;">
-                        <img src="${url}" alt="${alt}" style="max-width: 100%; max-height: 55vh; border-radius: 16px; box-shadow: 0 15px 50px rgba(0,0,0,0.5);" />
+                        <img src="${resolvedUrl}" alt="${alt}" style="max-width: 100%; max-height: 55vh; border-radius: 16px; box-shadow: 0 15px 50px rgba(0,0,0,0.5);" />
                     </div>
                 `);
 			});
@@ -565,6 +580,23 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
 		setShowExportMenu(false);
 	};
 
+    const exportToJSON = async () => {
+        const bundle = await exportImport.createBundle([presentation.id]);
+        exportImport.downloadBundle(bundle, `${title.replace(/[^a-z0-9]/gi, '_')}.json`);
+        setShowExportMenu(false);
+    };
+
+    const exportToMarkdown = () => {
+        const blob = new Blob([markdown], { type: 'text/markdown' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${title.replace(/[^a-z0-9]/gi, '_')}.md`;
+        a.click();
+        URL.revokeObjectURL(url);
+        setShowExportMenu(false);
+    };
+
 
 	// Navigate preview slides
 	const prevSlide = () => setCurrentPreviewSlide(Math.max(0, currentPreviewSlide - 1));
@@ -615,6 +647,23 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
 
 					<div className="w-px h-6 bg-white/10 mx-2" />
 
+                    <ImageSelector onInsertImage={(md) => {
+                        if (!textareaRef.current) return;
+                        const start = textareaRef.current.selectionStart;
+                        const end = textareaRef.current.selectionEnd;
+                        const newMarkdown = markdown.substring(0, start) + md + markdown.substring(end);
+                        setMarkdown(newMarkdown);
+                        // Force a re-focus and potentially move cursor
+                        setTimeout(() => {
+                            if (textareaRef.current) {
+                                textareaRef.current.focus();
+                                textareaRef.current.setSelectionRange(start + md.length, start + md.length);
+                            }
+                        }, 10);
+                    }} />
+
+					<div className="w-px h-6 bg-white/10 mx-2" />
+
 					<button
 						onClick={() => setShowPreview(!showPreview)}
 						className={`hidden lg:flex w-10 h-10 items-center justify-center rounded-xl transition-all border ${showPreview ? 'bg-violet-500/20 border-violet-500/50 text-violet-400' : 'bg-white/5 border-white/10 text-text-dim hover:text-white'}`}
@@ -640,7 +689,7 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
 								onClick={() => setShowExportMenu(!showExportMenu)}
 								className="px-5 py-2.5 rounded-xl font-semibold flex items-center gap-2 transition-all border border-white/10 hover:bg-gray-500/30"
 							>
-								<Download size={18} />
+								<Upload size={18} />
 								<span>Export</span>
 							</button>
 							<AnimatePresence>
@@ -669,6 +718,26 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
 											<div>
 												<div className="font-semibold text-sm">Export PPTX (Beta)</div>
 												<div className="text-xs text-text-dim">PowerPoint format</div>
+											</div>
+										</button>
+										<button
+											onClick={exportToJSON}
+											className="w-full px-4 py-3 flex items-center gap-3 hover:bg-white/5 transition-colors text-left border-t border-white/5"
+										>
+											<Database size={18} className="text-blue-400" />
+											<div>
+												<div className="font-semibold text-sm">Export JSON</div>
+												<div className="text-xs text-text-dim">Portable data format</div>
+											</div>
+										</button>
+										<button
+											onClick={exportToMarkdown}
+											className="w-full px-4 py-3 flex items-center gap-3 hover:bg-white/5 transition-colors text-left border-t border-white/5"
+										>
+											<FileText size={18} className="text-emerald-400" />
+											<div>
+												<div className="font-semibold text-sm">Export Markdown</div>
+												<div className="text-xs text-text-dim">Raw markdown file</div>
 											</div>
 										</button>
 									</motion.div>

@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { getTheme } from '../utils/themes';
 import { parseMarkdownToSlides } from '../utils/markdownParser';
 import { loadGoogleFont } from '../utils/fontLoader';
+import { resolveLocalImages } from '../utils/imageStorage';
 
 // NOTE: heavy libs (reveal.js, plugins, mermaid, reveal css) are now loaded dynamically inside useEffect
 
@@ -28,7 +29,20 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
 }) => {
     const deckRef = React.useRef<HTMLDivElement>(null);
     const revealInstance = React.useRef<any | null>(null); // changed to any to avoid static dependency
-    const slides = React.useMemo(() => parseMarkdownToSlides(markdown, globalTransition), [markdown, globalTransition]);
+    
+    const [resolvedMarkdown, setResolvedMarkdown] = React.useState(markdown);
+    const [isResolving, setIsResolving] = React.useState(true);
+
+    React.useEffect(() => {
+        const resolve = async () => {
+            const res = await resolveLocalImages(markdown);
+            setResolvedMarkdown(res);
+            setIsResolving(false);
+        };
+        resolve();
+    }, [markdown]);
+
+    const slides = React.useMemo(() => parseMarkdownToSlides(resolvedMarkdown, globalTransition), [resolvedMarkdown, globalTransition]);
 
     React.useEffect(() => {
         const linkId = 'reveal-theme';
@@ -43,6 +57,7 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
         });
 
         loadGoogleFont(fontFamily);
+        if (isResolving) return;
 
         const themeConfig = getTheme(theme);
         const baseTheme = themeConfig.baseTheme || 'black';
@@ -443,7 +458,7 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
                 try { revealInstance.current.destroy(); } catch (e) { }
             }
         };
-    }, [theme, globalAlignment, fontFamily, globalTransition, markdown]);
+    }, [theme, globalAlignment, fontFamily, globalTransition, resolvedMarkdown, isResolving]);
 
     return (
         <motion.div

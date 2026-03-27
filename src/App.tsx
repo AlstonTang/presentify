@@ -6,6 +6,9 @@ import { Settings } from './components/Settings';
 import { OfflineBanner } from './components/OfflineBanner';
 import type { Presentation } from './types';
 import { storage } from './utils/storage';
+import { fontStorage } from './utils/fontStorage';
+import { clearImageCache } from './utils/imageStorage';
+import { registerCustomFont } from './utils/fontLoader';
 import { v4 as uuidv4 } from 'uuid';
 
 import { motion, AnimatePresence } from 'framer-motion';
@@ -140,6 +143,26 @@ const App: React.FC = () => {
 
         window.addEventListener('popstate', handlePopState);
         return () => window.removeEventListener('popstate', handlePopState);
+    }, []);
+
+    // Load custom fonts on mount
+    React.useEffect(() => {
+        const loadCustomFonts = async () => {
+            const customFonts = await fontStorage.getAll();
+            for (const font of customFonts) {
+                await registerCustomFont(font.fontFamily, font.data);
+            }
+        };
+        loadCustomFonts();
+        
+        const handleCustomFontsChanged = () => {
+            loadCustomFonts();
+        };
+        window.addEventListener('custom-fonts-changed', handleCustomFontsChanged);
+        return () => {
+            window.removeEventListener('custom-fonts-changed', handleCustomFontsChanged);
+            clearImageCache();
+        };
     }, []);
 
     const handleCreate = (folderId?: string) => {
