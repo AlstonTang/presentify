@@ -9,85 +9,85 @@ import { resolveLocalImages } from '../utils/imageStorage';
 // NOTE: heavy libs (reveal.js, plugins, mermaid, reveal css) are now loaded dynamically inside useEffect
 
 interface PresentationViewerProps {
-    markdown: string;
-    theme: string;
-    globalAlignment?: 'center' | 'left';
-    fontFamily?: string;
-    onClose: () => void;
-    initialIndices?: [number, number];
-    globalTransition: string | 'none';
+	markdown: string;
+	theme: string;
+	globalAlignment?: 'center' | 'left';
+	fontFamily?: string;
+	onClose: () => void;
+	initialIndices?: [number, number];
+	globalTransition: string | 'none';
 }
 
 export const PresentationViewer: React.FC<PresentationViewerProps> = ({
-    markdown,
-    theme,
-    globalAlignment = 'center',
-    fontFamily = 'Outfit',
-    onClose,
-    initialIndices,
-    globalTransition
+	markdown,
+	theme,
+	globalAlignment = 'center',
+	fontFamily = 'Outfit',
+	onClose,
+	initialIndices,
+	globalTransition
 }) => {
-    const deckRef = React.useRef<HTMLDivElement>(null);
-    const revealInstance = React.useRef<any | null>(null); // changed to any to avoid static dependency
-    
-    const [resolvedMarkdown, setResolvedMarkdown] = React.useState(markdown);
-    const [isResolving, setIsResolving] = React.useState(true);
+	const deckRef = React.useRef<HTMLDivElement>(null);
+	const revealInstance = React.useRef<any | null>(null); // changed to any to avoid static dependency
 
-    React.useEffect(() => {
-        const resolve = async () => {
-            const res = await resolveLocalImages(markdown);
-            setResolvedMarkdown(res);
-            setIsResolving(false);
-        };
-        resolve();
-    }, [markdown]);
+	const [resolvedMarkdown, setResolvedMarkdown] = React.useState(markdown);
+	const [isResolving, setIsResolving] = React.useState(true);
 
-    const slides = React.useMemo(() => parseMarkdownToSlides(resolvedMarkdown, globalTransition), [resolvedMarkdown, globalTransition]);
+	React.useEffect(() => {
+		const resolve = async () => {
+			const res = await resolveLocalImages(markdown);
+			setResolvedMarkdown(res);
+			setIsResolving(false);
+		};
+		resolve();
+	}, [markdown]);
 
-    React.useEffect(() => {
-        const linkId = 'reveal-theme';
-        const customStyleId = 'reveal-custom-theme';
-        const coreCssId = 'reveal-core-css';
-        const highlightCssId = 'reveal-highlight-css';
+	const slides = React.useMemo(() => parseMarkdownToSlides(resolvedMarkdown, globalTransition), [resolvedMarkdown, globalTransition]);
 
-        // Cleanup existing styles
-        [linkId, customStyleId, coreCssId, highlightCssId].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.remove();
-        });
+	React.useEffect(() => {
+		const linkId = 'reveal-theme';
+		const customStyleId = 'reveal-custom-theme';
+		const coreCssId = 'reveal-core-css';
+		const highlightCssId = 'reveal-highlight-css';
 
-        loadGoogleFont(fontFamily);
-        if (isResolving) return;
+		// Cleanup existing styles
+		[linkId, customStyleId, coreCssId, highlightCssId].forEach(id => {
+			const el = document.getElementById(id);
+			if (el) el.remove();
+		});
 
-        const themeConfig = getTheme(theme);
-        const baseTheme = themeConfig.baseTheme || 'black';
+		loadGoogleFont(fontFamily);
+		if (isResolving) return;
 
-        // Inject reveal core CSS and highlight theme only when needed
-        const injectCss = (id: string, href: string) => {
-            if (document.getElementById(id)) return;
-            const l = document.createElement('link');
-            l.rel = 'stylesheet';
-            l.href = href;
-            l.id = id;
-            l.crossOrigin = '';
-            document.head.appendChild(l);
-        };
+		const themeConfig = getTheme(theme);
+		const baseTheme = themeConfig.baseTheme || 'black';
 
-        injectCss(coreCssId, 'https://cdn.jsdelivr.net/npm/reveal.js/dist/reveal.css');
-        injectCss(highlightCssId, 'https://cdn.jsdelivr.net/npm/reveal.js/plugin/highlight/monokai.css');
+		// Inject reveal core CSS and highlight theme only when needed
+		const injectCss = (id: string, href: string) => {
+			if (document.getElementById(id)) return;
+			const l = document.createElement('link');
+			l.rel = 'stylesheet';
+			l.href = href;
+			l.id = id;
+			l.crossOrigin = '';
+			document.head.appendChild(l);
+		};
 
-        // 1. Load Base Theme (kept same behavior, loaded from CDN)
-        const link = document.createElement('link');
-        link.rel = 'stylesheet';
-        link.href = `https://cdn.jsdelivr.net/npm/reveal.js/dist/theme/${baseTheme}.css`;
-        link.id = linkId;
-        document.head.appendChild(link);
+		injectCss(coreCssId, 'https://cdn.jsdelivr.net/npm/reveal.js/dist/reveal.css');
+		injectCss(highlightCssId, 'https://cdn.jsdelivr.net/npm/reveal.js/plugin/highlight/monokai.css');
 
-        // 2. Custom Overrides
-        const style = document.createElement('style');
-        style.id = customStyleId;
+		// 1. Load Base Theme (kept same behavior, loaded from CDN)
+		const link = document.createElement('link');
+		link.rel = 'stylesheet';
+		link.href = `https://cdn.jsdelivr.net/npm/reveal.js/dist/theme/${baseTheme}.css`;
+		link.id = linkId;
+		document.head.appendChild(link);
 
-        const customCss = `
+		// 2. Custom Overrides
+		const style = document.createElement('style');
+		style.id = customStyleId;
+
+		const customCss = `
             /* 1. VIEWPORT & LAYOUT */
             .reveal-viewport { 
                 background: ${themeConfig.background} !important;
@@ -290,7 +290,47 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
                 background: rgba(255,255,255,0.2);
             }
         
-            /* 7. CONDENSED SLIDES */
+            /* 7. INLINE ANIMATION STACK */
+            .reveal .inline-animation-container {
+                display: inline-flex !important;
+                align-items: center !important;
+                vertical-align: middle !important;
+                position: relative !important;
+            }
+
+            .reveal .inline-animation-stack {
+                display: inline-grid !important;
+                grid-template-areas: "stack" !important;
+                justify-items: start !important;
+                align-items: center !important;
+                vertical-align: middle !important;
+                margin: 0 !important;
+                position: relative !important;
+                padding: 0 !important;
+            }
+
+            /* Inherit alignment from slide if needed */
+            .reveal .slides section.left-align .inline-animation-stack {
+                justify-items: start !important;
+            }
+
+            .reveal .inline-animation-stack > * {
+                grid-area: stack !important;
+                margin: 0 !important;
+                transition: opacity 0.4s ease, visibility 0.4s ease !important;
+                white-space: pre !important;
+                line-height: inherit !important;
+            }
+
+            /* Absolute reset for fragments inside stack to ensure they stay in grid */
+            .reveal .inline-animation-stack span.fragment {
+                position: relative !important;
+                top: auto !important;
+                left: auto !important;
+                display: block !important; /* Ensure it respects grid area fully */
+            }
+        
+            /* 8. CONDENSED SLIDES */
             .reveal section.condensed h1 { font-size: 2.2em !important; }
             .reveal section.condensed h2 { font-size: 1.6em !important; }
             .reveal section.condensed h3 { font-size: 1.3em !important; }
@@ -299,209 +339,209 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
 
             ${themeConfig.customCss || ''}
         `;
-        style.appendChild(document.createTextNode(customCss));
-        document.head.appendChild(style);
+		style.appendChild(document.createTextNode(customCss));
+		document.head.appendChild(style);
 
-        // Dynamically load reveal.js, plugins and mermaid
-        let cancelled = false;
-        (async () => {
-            try {
-                const [
-                    RevealModule,
-                    MarkdownMod,
-                    NotesMod,
-                    MathMod,
-                    HighlightMod,
-                    mermaidMod
-                ] = await Promise.all([
-                    import('reveal.js'),
-                    import('reveal.js/plugin/markdown/markdown.esm.js'),
-                    import('reveal.js/plugin/notes/notes.esm.js'),
-                    import('reveal.js/plugin/math/math.esm.js'),
-                    import('reveal.js/plugin/highlight/highlight.esm.js'),
-                    import('mermaid').catch(() => null)
-                ]);
+		// Dynamically load reveal.js, plugins and mermaid
+		let cancelled = false;
+		(async () => {
+			try {
+				const [
+					RevealModule,
+					MarkdownMod,
+					NotesMod,
+					MathMod,
+					HighlightMod,
+					mermaidMod
+				] = await Promise.all([
+					import('reveal.js'),
+					import('reveal.js/plugin/markdown/markdown.esm.js'),
+					import('reveal.js/plugin/notes/notes.esm.js'),
+					import('reveal.js/plugin/math/math.esm.js'),
+					import('reveal.js/plugin/highlight/highlight.esm.js'),
+					import('mermaid').catch(() => null)
+				]);
 
-                if (cancelled) return;
+				if (cancelled) return;
 
-                const Reveal = (RevealModule as any).default ?? RevealModule;
-                const Markdown = (MarkdownMod as any).default ?? MarkdownMod;
-                const Notes = (NotesMod as any).default ?? NotesMod;
-                const MathPlugin = (MathMod as any).default ?? MathMod;
-                const Highlight = (HighlightMod as any).default ?? HighlightMod;
-                const mermaid = mermaidMod ? ((mermaidMod as any).default ?? mermaidMod) : null;
+				const Reveal = (RevealModule as any).default ?? RevealModule;
+				const Markdown = (MarkdownMod as any).default ?? MarkdownMod;
+				const Notes = (NotesMod as any).default ?? NotesMod;
+				const MathPlugin = (MathMod as any).default ?? MathMod;
+				const Highlight = (HighlightMod as any).default ?? HighlightMod;
+				const mermaid = mermaidMod ? ((mermaidMod as any).default ?? mermaidMod) : null;
 
-                // MERMAID CONFIGURATION (if present)
-                try {
-                    if (mermaid && mermaid.mermaidAPI && mermaid.mermaidAPI.reset) {
-                        mermaid.mermaidAPI.reset();
-                    }
-                } catch (e) {}
+				// MERMAID CONFIGURATION (if present)
+				try {
+					if (mermaid && mermaid.mermaidAPI && mermaid.mermaidAPI.reset) {
+						mermaid.mermaidAPI.reset();
+					}
+				} catch (e) { }
 
-                const mermaidTheme = themeConfig.baseTheme === 'white' ? 'default' : 'dark';
+				const mermaidTheme = themeConfig.baseTheme === 'white' ? 'default' : 'dark';
 
-                if (mermaid && mermaid.initialize) {
-                    mermaid.initialize({
-                        startOnLoad: false,
-                        theme: mermaidTheme,
-                        securityLevel: 'loose',
-                        fontFamily: fontFamily
-                    });
-                }
+				if (mermaid && mermaid.initialize) {
+					mermaid.initialize({
+						startOnLoad: false,
+						theme: mermaidTheme,
+						securityLevel: 'loose',
+						fontFamily: fontFamily
+					});
+				}
 
-                const MermaidPlugin = {
-                    id: 'mermaid',
-                    init: (deck: any) => {
-                        const renderedNodes = new Set<HTMLElement>();
+				const MermaidPlugin = {
+					id: 'mermaid',
+					init: (deck: any) => {
+						const renderedNodes = new Set<HTMLElement>();
 
-                        const renderMermaid = async (nodes: HTMLElement[]) => {
-                            if (!mermaid) return;
-                            if (nodes.length > 0) {
-                                try {
-                                    await mermaid.run({ nodes });
-                                    deck.layout();
-                                } catch (error) {
-                                    console.error("Mermaid rendering failed:", error);
-                                }
-                            }
-                        };
+						const renderMermaid = async (nodes: HTMLElement[]) => {
+							if (!mermaid) return;
+							if (nodes.length > 0) {
+								try {
+									await mermaid.run({ nodes });
+									deck.layout();
+								} catch (error) {
+									console.error("Mermaid rendering failed:", error);
+								}
+							}
+						};
 
-                        deck.on('ready', async () => {
-                            const revealEl = deck.getRevealElement();
-                            const codeBlocks = revealEl.querySelectorAll('pre code.language-mermaid, pre code.mermaid');
-                            const allNodes: HTMLElement[] = [];
+						deck.on('ready', async () => {
+							const revealEl = deck.getRevealElement();
+							const codeBlocks = revealEl.querySelectorAll('pre code.language-mermaid, pre code.mermaid');
+							const allNodes: HTMLElement[] = [];
 
-                            codeBlocks.forEach((block: HTMLElement) => {
-                                const pre = block.parentElement;
-                                if (pre && pre.tagName === 'PRE') {
-                                    const div = document.createElement('div');
-                                    // Copy classes and attributes
-                                    div.className = `mermaid ${pre.className}`;
-                                    Array.from(pre.attributes).forEach(attr => {
-                                        if (attr.name !== 'class') {
-                                            div.setAttribute(attr.name, attr.value);
-                                        }
-                                    });
-                                    div.setAttribute('data-mermaid-src', block.textContent || '');
-                                    div.textContent = block.textContent;
-                                    pre.replaceWith(div);
-                                    allNodes.push(div);
-                                }
-                            });
+							codeBlocks.forEach((block: HTMLElement) => {
+								const pre = block.parentElement;
+								if (pre && pre.tagName === 'PRE') {
+									const div = document.createElement('div');
+									// Copy classes and attributes
+									div.className = `mermaid ${pre.className}`;
+									Array.from(pre.attributes).forEach(attr => {
+										if (attr.name !== 'class') {
+											div.setAttribute(attr.name, attr.value);
+										}
+									});
+									div.setAttribute('data-mermaid-src', block.textContent || '');
+									div.textContent = block.textContent;
+									pre.replaceWith(div);
+									allNodes.push(div);
+								}
+							});
 
-                            if (allNodes.length > 0) deck.sync();
-                            await renderMermaid(allNodes);
+							if (allNodes.length > 0) deck.sync();
+							await renderMermaid(allNodes);
 
-                            const currentSlide = deck.getCurrentSlide();
-                            if (currentSlide) {
-                                const currentMermaids = currentSlide.querySelectorAll('.mermaid');
-                                currentMermaids.forEach((n: any) => renderedNodes.add(n as HTMLElement));
-                            }
-                        });
+							const currentSlide = deck.getCurrentSlide();
+							if (currentSlide) {
+								const currentMermaids = currentSlide.querySelectorAll('.mermaid');
+								currentMermaids.forEach((n: any) => renderedNodes.add(n as HTMLElement));
+							}
+						});
 
-                        deck.on('slidechanged', async (event: any) => {
-                            const currentSlide = event.currentSlide;
-                            const mermaidNodes = currentSlide.querySelectorAll('.mermaid');
-                            const nodesToFix: HTMLElement[] = [];
-                            mermaidNodes.forEach((node: any) => {
-                                const htmlNode = node as HTMLElement;
-                                if (!renderedNodes.has(htmlNode)) {
-                                    const src = htmlNode.getAttribute('data-mermaid-src');
-                                    if (src) {
-                                        htmlNode.textContent = src;
-                                        htmlNode.removeAttribute('data-processed');
-                                        nodesToFix.push(htmlNode);
-                                        renderedNodes.add(htmlNode);
-                                    }
-                                }
-                            });
-                            if (nodesToFix.length > 0) {
-                                await renderMermaid(nodesToFix);
-                            }
-                        });
-                    }
-                };
+						deck.on('slidechanged', async (event: any) => {
+							const currentSlide = event.currentSlide;
+							const mermaidNodes = currentSlide.querySelectorAll('.mermaid');
+							const nodesToFix: HTMLElement[] = [];
+							mermaidNodes.forEach((node: any) => {
+								const htmlNode = node as HTMLElement;
+								if (!renderedNodes.has(htmlNode)) {
+									const src = htmlNode.getAttribute('data-mermaid-src');
+									if (src) {
+										htmlNode.textContent = src;
+										htmlNode.removeAttribute('data-processed');
+										nodesToFix.push(htmlNode);
+										renderedNodes.add(htmlNode);
+									}
+								}
+							});
+							if (nodesToFix.length > 0) {
+								await renderMermaid(nodesToFix);
+							}
+						});
+					}
+				};
 
-                if (deckRef.current) {
-                    const deck = new Reveal(deckRef.current, {
-                        plugins: [Markdown, MermaidPlugin as any, Highlight, Notes, MathPlugin?.KaTeX].filter(Boolean),
-                        width: 1920,
-                        height: 1080,
-                        margin: 0.1,
-                        center: globalAlignment === 'center',
-                        transition: globalTransition === 'none' ? 'none' : 'slide',
-                        hash: true,
-                        markdown: { notesSeparator: 'Note:' },
-                        highlight: { highlightOnLoad: true, escapeHTML: false } as any
-                    });
+				if (deckRef.current) {
+					const deck = new Reveal(deckRef.current, {
+						plugins: [Markdown, MermaidPlugin as any, Highlight, Notes, MathPlugin?.KaTeX].filter(Boolean),
+						width: 1920,
+						height: 1080,
+						margin: 0.1,
+						center: globalAlignment === 'center',
+						transition: globalTransition === 'none' ? 'none' : 'slide',
+						hash: true,
+						markdown: { notesSeparator: 'Note:' },
+						highlight: { highlightOnLoad: true, escapeHTML: false } as any
+					});
 
-                    deck.initialize().then(() => {
-                        if (initialIndices) {
-                            deck.slide(initialIndices[0], initialIndices[1]);
-                        }
-                    });
+					deck.initialize().then(() => {
+						if (initialIndices) {
+							deck.slide(initialIndices[0], initialIndices[1]);
+						}
+					});
 
-                    revealInstance.current = deck;
-                }
-            } catch (err) {
-                console.error('Failed to load presentation runtime:', err);
-            }
-        })();
+					revealInstance.current = deck;
+				}
+			} catch (err) {
+				console.error('Failed to load presentation runtime:', err);
+			}
+		})();
 
-        return () => {
-            cancelled = true;
-            [linkId, customStyleId, coreCssId, highlightCssId].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.remove();
-            });
-            if (revealInstance.current) {
-                try { revealInstance.current.destroy(); } catch (e) { }
-            }
-        };
-    }, [theme, globalAlignment, fontFamily, globalTransition, resolvedMarkdown, isResolving]);
+		return () => {
+			cancelled = true;
+			[linkId, customStyleId, coreCssId, highlightCssId].forEach(id => {
+				const el = document.getElementById(id);
+				if (el) el.remove();
+			});
+			if (revealInstance.current) {
+				try { revealInstance.current.destroy(); } catch (e) { }
+			}
+		};
+	}, [theme, globalAlignment, fontFamily, globalTransition, resolvedMarkdown, isResolving]);
 
-    return (
-        <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-100 bg-black"
-            style={{ background: getTheme(theme).background }}
-        >
-            <button
-                onClick={onClose}
-                className="fixed top-6 right-6 z-110 w-12 h-12 flex items-center justify-center hover:bg-black/70 backdrop-blur-xl opacity-50 border border-white/10 rounded-xl text-white/70 hover:text-white transition-all"
-            >
-                <X size={24} />
-            </button>
+	return (
+		<motion.div
+			initial={{ opacity: 0 }}
+			animate={{ opacity: 1 }}
+			exit={{ opacity: 0 }}
+			className="fixed inset-0 z-100 bg-black"
+			style={{ background: getTheme(theme).background }}
+		>
+			<button
+				onClick={onClose}
+				className="fixed top-6 right-6 z-110 w-12 h-12 flex items-center justify-center hover:bg-black/70 backdrop-blur-xl opacity-50 border border-white/10 rounded-xl text-white/70 hover:text-white transition-all"
+			>
+				<X size={24} />
+			</button>
 
-            <div className="reveal h-full w-full z-10" ref={deckRef}>
-                <div className="slides">
-                    {slides.map((slide, index) => (
-                        <section key={index}>
-                            {slide.type === 'vertical' && slide.subSlides ? (
-                                slide.subSlides.map((sub, subIdx) => (
-                                    <section
-                                        key={`${index}-${subIdx}`}
-                                        data-markdown=""
-                                        className={`${(sub.alignment === 'left' || globalAlignment === 'left') ? 'left-align' : ''} ${sub.isCondensed ? 'condensed' : ''}`}
-                                    >
-                                        <textarea data-template defaultValue={sub.content} key={sub.content} />
-                                    </section>
-                                ))
-                            ) : (
-                                <section
-                                    key={index}
-                                    data-markdown=""
-                                    className={`${(slide.alignment === 'left' || globalAlignment === 'left') ? 'left-align' : ''} ${slide.isCondensed ? 'condensed' : ''}`}
-                                >
-                                    <textarea data-template defaultValue={slide.content} key={slide.content} />
-                                </section>
-                            )}
-                        </section>
-                    ))}
-                </div>
-            </div>
-        </motion.div>
-    );
+			<div className="reveal h-full w-full z-10" ref={deckRef}>
+				<div className="slides">
+					{slides.map((slide, index) => (
+						<section key={index}>
+							{slide.type === 'vertical' && slide.subSlides ? (
+								slide.subSlides.map((sub, subIdx) => (
+									<section
+										key={`${index}-${subIdx}`}
+										data-markdown=""
+										className={`${(sub.alignment === 'left' || globalAlignment === 'left') ? 'left-align' : ''} ${sub.isCondensed ? 'condensed' : ''}`}
+									>
+										<textarea data-template defaultValue={sub.content} key={sub.content} />
+									</section>
+								))
+							) : (
+								<section
+									key={index}
+									data-markdown=""
+									className={`${(slide.alignment === 'left' || globalAlignment === 'left') ? 'left-align' : ''} ${slide.isCondensed ? 'condensed' : ''}`}
+								>
+									<textarea data-template defaultValue={slide.content} key={slide.content} />
+								</section>
+							)}
+						</section>
+					))}
+				</div>
+			</div>
+		</motion.div>
+	);
 };

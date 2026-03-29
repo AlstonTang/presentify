@@ -93,129 +93,233 @@ function parseAndProcess(text: string, parentTitle: string, startLine: number, g
         ? slide.transition
         : globalTransition;
 
-    if (transitionToUse && transitionToUse !== 'none') {
-        slide.content = applyFragments(slide.content, transitionToUse);
-    }
+    // Unified handler for fragments and inline animations to maintain correct ordering
+    slide.content = applyFragmentsAndAnimations(slide.content, transitionToUse && transitionToUse !== 'none' ? transitionToUse : null);
 
     return autoSplitIfLong(slide, startLine);
 }
 
 /**
- * Injects Reveal.js fragment classes.
- * 
- * Strategy:
- * - For code/math blocks: Apply comment on same line (these are block-level elements)
- * - For list items: Wrap content in <span class="fragment"> to directly apply the class
- * - For paragraphs: Put comment on SEPARATE LINE after content, so it becomes a sibling 
- *   of the <p> element rather than a child (preventing it from attaching to inline elements)
+ * Injects Reveal.js fragments and handles inline animation stacks in a single pass.
+ * This ensures that fragment indices are sequential and synchronized.
  */
-function applyFragments(content: string, type: string): string {
+function applyFragmentsAndAnimations(content: string, type: string | null): string {
     const lines = content.split('\n');
-    const cleanType = type.replace(/^fragment\s+/, '');
+    const cleanType = (type || 'fade-in').replace(/^fragment\s+/, '');
     const fragmentClass = `fragment ${cleanType}`.trim();
+    const isAutoFragment = !!type;
 
+    // 1. Pre-scan for inline animations to group them by ID and track their first occurrence
+    const animationRegex = /```inlineAnimation\[(\w+)\]\s*\n([\s\S]*?)\n```/g;
+    const blocksById: Record<string, string[]> = {};
+    const firstLineIdx: Record<string, number> = {};
+    const idByLine: Record<number, string> = {};
+    
+    let m;
+    while ((m = animationRegex.exec(content)) !== null) {
+        const id = m[1];
+        const lineStart = content.substring(0, m.index).split('\n').length - 1;
+        if (!(id in blocksById)) {
+            blocksById[id] = [];
+            firstLineIdx[id] = lineStart;
+        }
+        blocksById[id].push(m[2]);
+        idByLine[lineStart] = id;
+    }
+
+    let fragmentIndex = 0;
+    const result: string[] = [];
+    
     let inCodeBlock = false;
     let inMathBlock = false;
     let inTableBlock = false;
     let inQuoteBlock = false;
-
+    
     let pendingCodeBlockFragment = false;
     let pendingMathBlockFragment = false;
-    // We don't need pending flags for tables/quotes because we just append the comment after the block
 
-    const result: string[] = [];
+    const addFragment = (force = false) => {
+        if (!isAutoFragment && !force) return "";
+        fragmentIndex++;
+        return `<!-- .element: class="${fragmentClass}" data-fragment-index="${fragmentIndex}" -->`;
+    };
 
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
         const trimmed = line.trim();
 
+        // 0. Handle Inline Animations
+        if (idByLine[i]) {
+            const id = idByLine[i];
+            const isFirst = (i === firstLineIdx[id]);
+            
+            // Skip until end of current block
+            let endIdx = i;
+            while (endIdx < lines.length && !lines[endIdx].trim().endsWith('```')) {
+                endIdx++;
+            }
+
+            if (isFirst) {
+                const blocks = blocksById[id];
+                
+                let containerFragmentClass = "";
+                let containerIndexAttr = "";
+                let baseAnimIndex = fragmentIndex + 1;
+
+                // Identify common prefix and suffix across ALL versions to keep them static
+                let prefix = blocks[0];
+                let suffix = blocks[0];
+                
+                for (let j = 1; j < blocks.length; j++) {
+                    // Find common prefix
+                    let p = 0;
+                    while (p < prefix.length && p < blocks[j].length && prefix[p] === blocks[j][p]) {
+                        p++;
+                    }
+                    prefix = prefix.substring(0, p);
+                    
+                    // Find common suffix
+                    let s = 0;
+                    while (s < suffix.length && s < blocks[j].length && 
+                           suffix[suffix.length - 1 - s] === blocks[j][blocks[j].length - 1 - s]) {
+                        s++;
+                    }
+                    suffix = suffix.substring(suffix.length - s);
+                }
+
+                // Ensure suffix doesn't overlap prefix if strings are short
+                if (prefix.length + suffix.length > Math.min(...blocks.map(b => b.length))) {
+                    suffix = ""; 
+                }
+
+                // Extract core content for each step (the part that actually changes)
+                const coreVersions = blocks.map(b => b.substring(prefix.length, b.length - suffix.length));
+
+                // Determine if we need to auto-fragment the whole container
+                if (isAutoFragment) {
+                    fragmentIndex++;
+                    containerFragmentClass = ` ${fragmentClass}`;
+                    containerIndexAttr = ` data-fragment-index="${fragmentIndex}"`;
+                    baseAnimIndex = fragmentIndex + 1;
+                }
+                
+                // Wrap in a span to keep it inline with surrounding slide text
+                // IMPORTANT: We remove all \n from the generated HTML to prevent the markdown plugin from adding <br/> or <p> tags
+                let stackHtml = `<span class="inline-animation-container${containerFragmentClass}"${containerIndexAttr} data-animation-id="${id}">`;
+                
+                // 1. Common Prefix
+                if (prefix) stackHtml += `<span style="white-space: pre !important;">${prefix}</span>`;
+                
+                // 2. The Animated Stack (Grid overlapping part)
+                // Use span with inline-grid to avoid block-level disruption
+                stackHtml += `<span class="inline-animation-stack" style="display: inline-grid !important; grid-template-areas: 'stack' !important; align-items: center !important; vertical-align: middle !important;">`;
+                
+                coreVersions.forEach((bContent, idx) => {
+                    let fClass = "";
+                    let fIndex = 0;
+                    if (idx === 0) {
+                        if (blocks.length > 1) {
+                            fClass = "fragment fade-out";
+                            fIndex = baseAnimIndex;
+                        }
+                    } else if (idx === blocks.length - 1) {
+                        fClass = "fragment fade-in";
+                        fIndex = baseAnimIndex + idx - 1;
+                    } else {
+                        fClass = "fragment fade-in-then-out";
+                        fIndex = baseAnimIndex + idx - 1;
+                    }
+
+                    const indexAttr = fIndex > 0 ? `data-fragment-index="${fIndex}"` : "";
+                    const elementComment = fClass ? `<!-- .element: class="${fClass}" ${indexAttr} -->` : "";
+                    
+                    // Use span to stick to the 'stack' grid area
+                    stackHtml += `<span style="grid-area: stack !important; white-space: pre !important;">${bContent} ${elementComment}</span>`;
+                });
+                
+                stackHtml += `</span>`; // End of stack
+                
+                // 3. Common Suffix
+                if (suffix) stackHtml += `<span style="white-space: pre !important;">${suffix}</span>`;
+                
+                stackHtml += `</span>`; // End of container
+                result.push(stackHtml);
+                
+                // Track how many fragment clicks this animation sequence consumed
+                fragmentIndex += (blocks.length - 1);
+            }
+            
+            i = endIdx;
+            continue;
+        }
+
         // 1. Handle Code Blocks
         if (trimmed.startsWith('```')) {
-            if (inTableBlock) { inTableBlock = false; result.push(`<!-- .element: class="${fragmentClass}" -->`); }
-            if (inQuoteBlock) { inQuoteBlock = false; result.push(`<!-- .element: class="${fragmentClass}" -->`); }
+            if (inTableBlock && isAutoFragment) { inTableBlock = false; result.push(addFragment()); }
+            if (inQuoteBlock && isAutoFragment) { inQuoteBlock = false; result.push(addFragment()); }
 
             if (!inCodeBlock) {
                 inCodeBlock = true;
-                pendingCodeBlockFragment = !line.includes('.element');
+                pendingCodeBlockFragment = isAutoFragment && !line.includes('.element');
                 result.push(line);
             } else {
                 inCodeBlock = false;
                 result.push(line);
                 if (pendingCodeBlockFragment) {
-                    result.push(`<!-- .element: class="${fragmentClass}" -->`);
+                    result.push(addFragment());
                     pendingCodeBlockFragment = false;
                 }
             }
             continue;
         }
-
-        if (inCodeBlock) {
-            result.push(line);
-            continue;
-        }
+        if (inCodeBlock) { result.push(line); continue; }
 
         // 2. Handle Multi-line Math Blocks ($$)
         if (trimmed.startsWith('$$')) {
-            if (inTableBlock) { inTableBlock = false; result.push(`<!-- .element: class="${fragmentClass}" -->`); }
-            if (inQuoteBlock) { inQuoteBlock = false; result.push(`<!-- .element: class="${fragmentClass}" -->`); }
+            if (inTableBlock && isAutoFragment) { inTableBlock = false; result.push(addFragment()); }
+            if (inQuoteBlock && isAutoFragment) { inQuoteBlock = false; result.push(addFragment()); }
 
             if (!inMathBlock && !trimmed.endsWith('$$')) {
                 inMathBlock = true;
-                pendingMathBlockFragment = !line.includes('.element');
+                pendingMathBlockFragment = isAutoFragment && !line.includes('.element');
                 result.push(line);
             } else if (inMathBlock) {
                 inMathBlock = false;
                 result.push(line);
                 if (pendingMathBlockFragment) {
-                    result.push(`<!-- .element: class="${fragmentClass}" -->`);
+                    result.push(addFragment());
                     pendingMathBlockFragment = false;
                 }
             } else {
                 result.push(line);
-                result.push(`<!-- .element: class="${fragmentClass}" -->`);
+                if (isAutoFragment) result.push(addFragment());
             }
             continue;
         }
-
-        if (inMathBlock) {
-            result.push(line);
-            continue;
-        }
+        if (inMathBlock) { result.push(line); continue; }
 
         // 3. Handle Tables (lines starting with |)
         if (trimmed.startsWith('|')) {
-            if (inQuoteBlock) { inQuoteBlock = false; result.push(`<!-- .element: class="${fragmentClass}" -->`); }
-
-            if (!inTableBlock) {
-                inTableBlock = true;
-            }
+            if (inQuoteBlock && isAutoFragment) { inQuoteBlock = false; result.push(addFragment()); }
+            if (!inTableBlock) inTableBlock = true;
             result.push(line);
-            // Look ahead: if next line doesn't start with |, close the block
             const nextLine = lines[i + 1]?.trim();
             if (!nextLine || !nextLine.startsWith('|')) {
                 inTableBlock = false;
-                if (!line.includes('.element')) {
-                    result.push(`<!-- .element: class="${fragmentClass}" -->`);
-                }
+                if (isAutoFragment && !line.includes('.element')) result.push(addFragment());
             }
             continue;
         }
 
         // 4. Handle Blockquotes (lines starting with >)
         if (trimmed.startsWith('>')) {
-            if (inTableBlock) { inTableBlock = false; result.push(`<!-- .element: class="${fragmentClass}" -->`); }
-
-            if (!inQuoteBlock) {
-                inQuoteBlock = true;
-            }
+            if (inTableBlock && isAutoFragment) { inTableBlock = false; result.push(addFragment()); }
+            if (!inQuoteBlock) inQuoteBlock = true;
             result.push(line);
-            // Look ahead
             const nextLine = lines[i + 1]?.trim();
             if (!nextLine || !nextLine.startsWith('>')) {
                 inQuoteBlock = false;
-                if (!line.includes('.element')) {
-                    result.push(`<!-- .element: class="${fragmentClass}" -->`);
-                }
+                if (isAutoFragment && !line.includes('.element')) result.push(addFragment());
             }
             continue;
         }
@@ -228,12 +332,10 @@ function applyFragments(content: string, type: string): string {
             trimmed === '--' ||
             trimmed.startsWith('::') ||
             trimmed.startsWith('Note:') ||
-            line.includes('.element') ||
-            line.includes(`class="${fragmentClass}"`)
+            line.includes('.element')
         ) {
-            if (inTableBlock) { inTableBlock = false; result.push(`<!-- .element: class="${fragmentClass}" -->`); }
-            if (inQuoteBlock) { inQuoteBlock = false; result.push(`<!-- .element: class="${fragmentClass}" -->`); }
-
+            if (inTableBlock && isAutoFragment) { inTableBlock = false; result.push(addFragment()); }
+            if (inQuoteBlock && isAutoFragment) { inQuoteBlock = false; result.push(addFragment()); }
             result.push(line);
             continue;
         }
@@ -241,27 +343,31 @@ function applyFragments(content: string, type: string): string {
         // 6. Handle List Items
         const listMatch = line.match(/^(\s*)([-*+]|\d+\.)\s+/);
         if (listMatch) {
-            if (inTableBlock) { inTableBlock = false; result.push(`<!-- .element: class="${fragmentClass}" -->`); }
-            if (inQuoteBlock) { inQuoteBlock = false; result.push(`<!-- .element: class="${fragmentClass}" -->`); }
+            if (inTableBlock && isAutoFragment) { inTableBlock = false; result.push(addFragment()); }
+            if (inQuoteBlock && isAutoFragment) { inQuoteBlock = false; result.push(addFragment()); }
 
             const prefix = listMatch[0];
             const itemContent = line.substring(prefix.length);
 
-            if (itemContent.trim().match(/^\[[ xX]\]/)) {
-                result.push(`${line} <!-- .element: class="${fragmentClass}" -->`);
-                continue;
+            if (isAutoFragment) {
+                if (itemContent.trim().match(/^\[[ xX]\]/)) {
+                    result.push(`${line} ${addFragment()}`);
+                } else {
+                    fragmentIndex++;
+                    result.push(`${prefix}<span class="${fragmentClass}" data-fragment-index="${fragmentIndex}">${itemContent}</span>`);
+                }
+            } else {
+                result.push(line);
             }
-
-            result.push(`${prefix}<span class="${fragmentClass}">${itemContent}</span>`);
             continue;
         }
 
         // 7. Regular paragraph content
-        if (inTableBlock) { inTableBlock = false; result.push(`<!-- .element: class="${fragmentClass}" -->`); }
-        if (inQuoteBlock) { inQuoteBlock = false; result.push(`<!-- .element: class="${fragmentClass}" -->`); }
+        if (inTableBlock && isAutoFragment) { inTableBlock = false; result.push(addFragment()); }
+        if (inQuoteBlock && isAutoFragment) { inQuoteBlock = false; result.push(addFragment()); }
 
         result.push(line);
-        result.push(`<!-- .element: class="${fragmentClass}" -->`);
+        if (isAutoFragment) result.push(addFragment());
     }
 
     return result.join('\n');

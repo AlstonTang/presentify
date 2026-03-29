@@ -967,6 +967,11 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
 									<h4 className="text-[11px] font-bold text-white/50 uppercase tracking-widest mb-4">Animations</h4>
 									<div className="space-y-3">
 										<CodeSnippet code="::fragment fade-up" label="Incremental Content" description="Animate paragraphs and list items." />
+										<CodeSnippet 
+											code={"```inlineAnimation[1]\nContent 1\n```\n\n```inlineAnimation[1]\nContent 2\n```"} 
+											label="Diff Animations" 
+											description="Stack multiple blocks with the same [ID]. Identical text remains static." 
+										/>
 										<CodeSnippet code="Note:" label="Speaker Notes" description="Content hidden from the audience." />
 									</div>
 								</section>
