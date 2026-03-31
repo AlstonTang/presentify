@@ -16,6 +16,7 @@ interface PresentationViewerProps {
 	onClose: () => void;
 	initialIndices?: [number, number];
 	globalTransition: string | 'none';
+	discrete?: boolean;
 }
 
 export const PresentationViewer: React.FC<PresentationViewerProps> = ({
@@ -25,7 +26,8 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
 	fontFamily = 'Outfit',
 	onClose,
 	initialIndices,
-	globalTransition
+	globalTransition,
+	discrete = false
 }) => {
 	const deckRef = React.useRef<HTMLDivElement>(null);
 	const revealInstance = React.useRef<any | null>(null); // changed to any to avoid static dependency
@@ -472,7 +474,15 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
 						transition: globalTransition === 'none' ? 'none' : 'slide',
 						hash: true,
 						markdown: { notesSeparator: 'Note:' },
-						highlight: { highlightOnLoad: true, escapeHTML: false } as any
+						highlight: { highlightOnLoad: true, escapeHTML: false } as any,
+						// Discrete mode configurations
+						controls: !discrete,
+						progress: !discrete,
+						navigationMode: discrete ? 'linear' : 'default',
+						keyboard: discrete ? {
+							37: 'prev', // left arrow
+							39: 'next'  // right arrow
+						} : true
 					});
 
 					deck.initialize().then(() => {
@@ -498,7 +508,18 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
 				try { revealInstance.current.destroy(); } catch (e) { }
 			}
 		};
-	}, [theme, globalAlignment, fontFamily, globalTransition, resolvedMarkdown, isResolving]);
+	}, [theme, globalAlignment, fontFamily, globalTransition, resolvedMarkdown, isResolving, discrete]);
+
+	// Handle Escape key to close
+	React.useEffect(() => {
+		const handleKeyDown = (e: KeyboardEvent) => {
+			if (e.key === 'Escape') {
+				onClose();
+			}
+		};
+		window.addEventListener('keydown', handleKeyDown);
+		return () => window.removeEventListener('keydown', handleKeyDown);
+	}, [onClose]);
 
 	return (
 		<motion.div
@@ -508,12 +529,14 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
 			className="fixed inset-0 z-100 bg-black"
 			style={{ background: getTheme(theme).background }}
 		>
-			<button
-				onClick={onClose}
-				className="fixed top-6 right-6 z-110 w-12 h-12 flex items-center justify-center hover:bg-black/70 backdrop-blur-xl opacity-50 border border-white/10 rounded-xl text-white/70 hover:text-white transition-all"
-			>
-				<X size={24} />
-			</button>
+			{!discrete && (
+				<button
+					onClick={onClose}
+					className="fixed top-6 right-6 z-110 w-12 h-12 flex items-center justify-center hover:bg-black/70 backdrop-blur-xl opacity-50 border border-white/10 rounded-xl text-white/70 hover:text-white transition-all"
+				>
+					<X size={24} />
+				</button>
+			)}
 
 			<div className="reveal h-full w-full z-10" ref={deckRef}>
 				<div className="slides">

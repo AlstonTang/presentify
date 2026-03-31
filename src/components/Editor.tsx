@@ -13,6 +13,8 @@ import {
 	Presentation as PresentationIcon,
 	ChevronLeft,
 	ChevronRight,
+	ChevronDown,
+	Zap,
 } from 'lucide-react';
 import { type Presentation, type SlideContent } from '../types';
 import { FontSelector } from './FontSelector';
@@ -32,7 +34,7 @@ interface EditorProps {
 	presentation: Presentation;
 	onSave: (presentation: Presentation) => void;
 	onBack: () => void;
-	onPresent: (indices?: [number, number]) => void;
+	onPresent: (indices?: [number, number], discrete?: boolean) => void;
 }
 
 export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, onPresent }) => {
@@ -51,6 +53,7 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
 	const [showGuide, setShowGuide] = React.useState(false);
 	const [showPreview, setShowPreview] = React.useState(true);
 	const [isSaved, setIsSaved] = React.useState(false);
+	const [showPresentMenu, setShowPresentMenu] = React.useState(false);
 
 	const [showExportMenu, setShowExportMenu] = React.useState(false);
 	const [currentPreviewSlide, setCurrentPreviewSlide] = React.useState(0);
@@ -759,27 +762,63 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
 							<span>{isSaved ? 'Saved' : hasChanges ? 'Save' : 'Saved'}</span>
 						</button>
 
-						<button
-							onClick={() => {
-								// Save current state before presenting
-								onSave({ ...presentation, title, markdown, theme, globalAlignment, fontFamily, globalTransition });
+						{/* Present dropdown */}
+						<div className="relative">
+							<button
+								onClick={() => setShowPresentMenu(!showPresentMenu)}
+								className="px-5 py-2.5 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-300 rounded-xl font-semibold flex items-center gap-2 transition-all"
+							>
+								<PresentationIcon size={18} />
+								<span>Present</span>
+								<ChevronDown size={16} className={`transition-transform duration-300 ${showPresentMenu ? 'rotate-180' : 'rotate-0'}`} />
+							</button>
 
-								if (settings.jumpToCurrentSlide) {
-									if (lastInteraction === 'preview') {
-										onPresent(getIndicesForPreview(currentPreviewSlide));
-									} else {
-										const cursorLine = textareaRef.current ? (textareaRef.current.value.substr(0, textareaRef.current.selectionStart).split("\n").length - 1) : 0;
-										onPresent(findSlideAtLine(cursorLine));
-									}
-								} else {
-									onPresent();
-								}
-							}}
-							className="px-5 py-2.5 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-300 rounded-xl font-semibold flex items-center gap-2 transition-all"
-						>
-							<PresentationIcon size={18} />
-							<span>Present</span>
-						</button>
+							<AnimatePresence>
+								{showPresentMenu && (
+									<motion.div
+										initial={{ opacity: 0, y: -10 }}
+										animate={{ opacity: 1, y: 0 }}
+										exit={{ opacity: 0, y: -10 }}
+										className="absolute top-full right-0 mt-2 w-56 bg-slate-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 p-1"
+									>
+										<button
+											onClick={() => {
+												onSave({ ...presentation, title, markdown, theme, globalAlignment, fontFamily, globalTransition });
+												if (settings.jumpToCurrentSlide) {
+													const indices = lastInteraction === 'preview' ? getIndicesForPreview(currentPreviewSlide) : findSlideAtLine(textareaRef.current ? (textareaRef.current.value.substr(0, textareaRef.current.selectionStart).split("\n").length - 1) : 0);
+													onPresent(indices, false);
+												} else onPresent(undefined, false);
+												setShowPresentMenu(false);
+											}}
+											className="w-full px-4 py-3 flex items-center gap-3 hover:bg-white/5 transition-colors text-left rounded-lg"
+										>
+											<PresentationIcon size={18} className="text-emerald-400" />
+											<div>
+												<div className="font-semibold text-sm">Present</div>
+												<div className="text-xs text-text-dim">Standard Reveal.js UI</div>
+											</div>
+										</button>
+										<button
+											onClick={() => {
+												onSave({ ...presentation, title, markdown, theme, globalAlignment, fontFamily, globalTransition });
+												if (settings.jumpToCurrentSlide) {
+													const indices = lastInteraction === 'preview' ? getIndicesForPreview(currentPreviewSlide) : findSlideAtLine(textareaRef.current ? (textareaRef.current.value.substr(0, textareaRef.current.selectionStart).split("\n").length - 1) : 0);
+													onPresent(indices, true);
+												} else onPresent(undefined, true);
+												setShowPresentMenu(false);
+											}}
+											className="w-full px-4 py-3 flex items-center gap-3 hover:bg-white/5 transition-colors text-left rounded-lg border-t border-white/5 mt-1 pt-2"
+										>
+											<Zap size={18} className="text-violet-400" />
+											<div>
+												<div className="font-semibold text-sm">Discrete Mode</div>
+												<div className="text-xs text-text-dim">Minimal, linear navigation</div>
+											</div>
+										</button>
+									</motion.div>
+								)}
+							</AnimatePresence>
+						</div>
 					</div>
 				</div>
 			</header>

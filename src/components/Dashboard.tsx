@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Presentation as PresentationIcon, Trash2, Clock, Play, Search, FolderOpen, Zap, Settings as SettingsIcon, Folder, X, FolderPlus, Edit2 } from 'lucide-react';
+import { Plus, Presentation as PresentationIcon, Trash2, Clock, Play, Search, FolderOpen, Zap, Settings as SettingsIcon, Folder, X, FolderPlus, Edit2, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Presentation, Folder as FolderType } from '../types';
 import { storage } from '../utils/storage';
@@ -10,7 +10,7 @@ import { Download as DownloadIcon, Upload as UploadIcon } from 'lucide-react';
 interface DashboardProps {
 	onSelect: (id: string) => void;
 	onCreate: (folderId?: string) => void;
-	onPlay: (id: string) => void;
+	onPlay: (id: string, discrete?: boolean) => void;
 	onSettings: () => void;
 }
 
@@ -27,6 +27,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelect, onCreate, onPlay
     const [exportingPresentationId, setExportingPresentationId] = React.useState<string | null>(null);
     const [isExportModalOpen, setIsExportModalOpen] = React.useState(false);
     const [exportOptions, setExportOptions] = React.useState({ includeFonts: true, includeImages: true });
+	const [activePlayMenuId, setActivePlayMenuId] = React.useState<string | null>(null);
 
 	React.useEffect(() => {
 		const load = () => {
@@ -436,13 +437,47 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelect, onCreate, onPlay
                                                                 )}
                                                             </AnimatePresence>
                                                         </div>
-														<button
-															onClick={(e) => { e.stopPropagation(); onPlay(p.id); }}
-															className="w-10 h-10 flex items-center justify-center bg-white/5 hover:bg-green-500/20 rounded-xl text-green-400 border border-transparent hover:border-green-500/50 transition-all"
-															title="Play Preview"
-														>
-															<Play size={18} fill="currentColor" />
-														</button>
+														<div className="relative">
+															<button
+																onClick={(e) => { e.stopPropagation(); setActivePlayMenuId(activePlayMenuId === p.id ? null : p.id); }}
+																className={`w-14 h-10 flex items-center justify-center gap-1 bg-white/5 hover:bg-green-500/20 rounded-xl text-green-400 border border-transparent hover:border-green-500/50 transition-all ${activePlayMenuId === p.id ? 'bg-green-500/20 border-green-500/50' : ''}`}
+																title="Presenting"
+															>
+																<Play size={18} fill="currentColor" />
+																<ChevronDown size={14} className={`transition-transform ${activePlayMenuId === p.id ? 'rotate-180' : ''}`} />
+															</button>
+
+															<AnimatePresence mode="wait">
+																{activePlayMenuId === p.id && (
+																	<motion.div
+																		initial={{ opacity: 0, scale: 0.9, y: 10 }}
+																		animate={{ opacity: 1, scale: 1, y: 0 }}
+																		exit={{ opacity: 0, scale: 0.9, y: 10 }}
+																		className="absolute right-0 top-12 z-50 w-48 bg-[#0a0e1a]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-1"
+																		onClick={(e) => e.stopPropagation()}
+																	>
+																		<button
+																			onClick={() => { onPlay(p.id, false); setActivePlayMenuId(null); }}
+																			className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-white/5 rounded-xl text-sm transition-colors text-left"
+																		>
+																			<Play size={14} className="text-green-400" />
+																			<div>
+																				<div className="font-semibold">Standard</div>
+																			</div>
+																		</button>
+																		<button
+																			onClick={() => { onPlay(p.id, true); setActivePlayMenuId(null); }}
+																			className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-white/5 rounded-xl text-sm transition-colors text-left border-t border-white/5 mt-1 pt-1"
+																		>
+																			<Zap size={14} className="text-violet-400" />
+																			<div>
+																				<div className="font-semibold">Discrete</div>
+																			</div>
+																		</button>
+																	</motion.div>
+																)}
+															</AnimatePresence>
+														</div>
 														<button
 															onClick={(e) => handleDeleteClick(e, p.id)}
 															className="w-10 h-10 flex items-center justify-center bg-white/5 hover:bg-red-500/20 rounded-xl text-red-400 border border-transparent hover:border-red-500/50 transition-all"

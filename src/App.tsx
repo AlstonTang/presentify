@@ -62,6 +62,7 @@ const App: React.FC = () => {
     const [currentId, setCurrentId] = React.useState<string | null>(null);
     const [isPresenting, setIsPresenting] = React.useState(false);
     const [startIndices, setStartIndices] = React.useState<[number, number] | undefined>(undefined);
+    const [isDiscrete, setIsDiscrete] = React.useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
 
     // Lifted Editor State
@@ -225,8 +226,9 @@ const App: React.FC = () => {
         updateUrl('dashboard');
     };
 
-    const handlePresent = (indices?: [number, number]) => {
+    const handlePresent = (indices?: [number, number], discrete?: boolean) => {
         setStartIndices(indices);
+        setIsDiscrete(!!discrete);
         setIsPresenting(true);
         setView('present');
         updateUrl('present', currentId, editorTitle, indices);
@@ -243,7 +245,7 @@ const App: React.FC = () => {
         }
     };
 
-    const handlePlayFromDashboard = (id: string) => {
+    const handlePlayFromDashboard = (id: string, discrete?: boolean) => {
         const p = storage.getPresentationById(id);
         if (p) {
             setCurrentId(id);
@@ -253,6 +255,7 @@ const App: React.FC = () => {
             setEditorGlobalAlignment(p.globalAlignment || 'center');
             setEditorFontFamily(p.fontFamily || 'Tahoma');
             setEditorTransition(p.globalTransition || 'none');
+            setIsDiscrete(!!discrete);
             setIsPresenting(true);
             setView('present');
             updateUrl('present', id, p.title);
@@ -325,6 +328,7 @@ const App: React.FC = () => {
                             onClose={handleExitPresent}
                             initialIndices={startIndices}
                             globalTransition={editorTransition}
+                            discrete={isDiscrete}
                         />
                     </motion.div>
                 )}
