@@ -971,7 +971,7 @@ export const Editor: React.FC<EditorProps> = ({ presentation, onSave, onBack, on
 							exit={{ width: 0, opacity: 0 }}
 							className="hidden xl:flex w-80 bg-slate-950/40 border-l border-white/5 flex-col overflow-hidden"
 						>
-							<div className="p-6 border-b border-white/5 bg-white/[0.02]">
+							<div className="p-6 border-b border-white/5 bg-white/2">
 								<h4 className="text-xs font-bold uppercase tracking-[0.2em] text-violet-400 mb-1 flex items-center gap-2">
 									<SidebarIcon size={14} />
 									Editor Guide
@@ -1052,7 +1052,7 @@ const CodeSnippet: React.FC<{ code: string, label: string, description?: string 
 	return (
 		<button
 			onClick={handleCopy}
-			className="group relative w-full flex flex-col p-3 bg-white/[0.03] hover:bg-white/[0.08] rounded-xl border border-white/5 hover:border-violet-500/30 transition-all text-left"
+			className="group relative w-full flex flex-col p-3 bg-white/3 hover:bg-white/8 rounded-xl border border-white/5 hover:border-violet-500/30 transition-all text-left"
 		>
 			<div className="flex items-center justify-between w-full mb-1">
 				<code className="text-violet-300 font-mono text-xs font-bold">{code}</code>

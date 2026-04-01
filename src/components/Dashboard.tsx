@@ -228,7 +228,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelect, onCreate, onPlay
 
 				<div className="flex flex-col lg:flex-row gap-12">
 					{/* Sidebar */}
-					<aside className="w-full lg:w-72 flex-shrink-0">
+					<aside className="w-full lg:w-72 shrink-0">
 						<div className="sticky top-12 space-y-8">
 							<div>
 								<div className="flex items-center justify-between mb-6">
@@ -326,7 +326,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelect, onCreate, onPlay
 								</button>
 							</motion.div>
 						) : filteredPresentations.length === 0 ? (
-							<div className="flex flex-col items-center justify-center py-32 text-center border border-dashed border-white/10 rounded-3xl bg-white/[0.02]">
+							<div className="flex flex-col items-center justify-center py-32 text-center border border-dashed border-white/10 rounded-3xl bg-white/2">
 								<Search size={48} className="text-text-dim mb-4" />
 								<h2 className="text-xl font-bold mb-1">No presentations found</h2>
 								<p className="text-text-muted">Try adjusting your search or selected folder.</p>
@@ -500,7 +500,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelect, onCreate, onPlay
 													{p.folderId && (
 														<div className="flex items-center gap-1.5 text-violet-400">
 															<Folder size={14} />
-															<span className="truncate max-w-[100px]">{folders.find(f => f.id === p.folderId)?.name}</span>
+															<span className="truncate max-w-25">{folders.find(f => f.id === p.folderId)?.name}</span>
 														</div>
 													)}
 													<div className="px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-[10px] uppercase tracking-wider font-bold ml-auto">

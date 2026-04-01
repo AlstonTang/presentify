@@ -549,7 +549,11 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
 										data-markdown=""
 										className={`${(sub.alignment === 'left' || globalAlignment === 'left') ? 'left-align' : ''} ${sub.isCondensed ? 'condensed' : ''}`}
 									>
-										<textarea data-template defaultValue={sub.content} key={sub.content} />
+										<textarea
+											data-template
+											defaultValue={`${sub.content}${sub.notes ? `\n\nNote:\n${sub.notes}` : ''}`}
+											key={sub.content}
+										/>
 									</section>
 								))
 							) : (
@@ -558,7 +562,11 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
 									data-markdown=""
 									className={`${(slide.alignment === 'left' || globalAlignment === 'left') ? 'left-align' : ''} ${slide.isCondensed ? 'condensed' : ''}`}
 								>
-									<textarea data-template defaultValue={slide.content} key={slide.content} />
+									<textarea
+										data-template
+										defaultValue={`${slide.content}${slide.notes ? `\n\nNote:\n${slide.notes}` : ''}`}
+										key={slide.content}
+									/>
 								</section>
 							)}
 						</section>
